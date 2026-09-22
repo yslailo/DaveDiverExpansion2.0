@@ -1,0 +1,234 @@
+using System.Collections.Generic;
+using BepInEx.Configuration;
+using DaveDiverExpansion.Helpers;
+using HarmonyLib;
+using Il2CppInterop.Runtime;
+using UnityEngine;
+
+namespace DaveDiverExpansion.Features;
+
+/// <summary>
+/// Automatically picks up nearby items during diving.
+/// Reads from EntityRegistry (shared Harmony-patched instance registries).
+/// </summary>
+public static class AutoPickup
+{
+    public static ConfigEntry<bool> Enabled;
+    public static ConfigEntry<bool> AutoPickupFish;
+    public static ConfigEntry<bool> AutoPickupItems;
+    public static ConfigEntry<bool> AutoOpenChests;
+    public static ConfigEntry<bool> AutoPickupAmmoBox;
+    public static ConfigEntry<bool> AutoPickupOxygenBox;
+    public static ConfigEntry<float> PickupRadius;
+    // Ported from SuperDave
+    public static ConfigEntry<bool> AutoDropCrabTraps;
+    public static ConfigEntry<bool> AutoPickupDebugMode;
+
+    // Oxygen chests spawn an OxygenZone at the chest location; the player must
+    // physically enter the zone to receive oxygen.  A large pickup radius would
+    // open the chest before the player is close enough, wasting it.
+    private const float OxygenChestRadius = 1f;
+
+    // Track objects being destroyed this frame to avoid double-pickup
+    private static readonly HashSet<GameObject> _pendingDestroy = new();
+
+    // Suppress pickup when player is locked (cutscene/dialogue), with cooldown after unlock
+    private static bool _wasLocked;
+    private static float _unlockTime;
+    private const float UnlockCooldown = 1f;
+
+
+    public static void Init(BepInEx.Configuration.ConfigFile config)
+    {
+        Enabled = config.Bind(
+            "AutoPickup", "Enabled", true,
+            "Enable automatic item pickup while diving");
+        AutoPickupFish = config.Bind(
+            "AutoPickup", "AutoPickupFish", false,
+            "Auto-pickup dead fish");
+        AutoPickupItems = config.Bind(
+            "AutoPickup", "AutoPickupItems", true,
+            "Auto-pickup dropped items");
+        AutoOpenChests = config.Bind(
+            "AutoPickup", "AutoOpenChests", false,
+            "Auto-open treasure chests");
+        AutoPickupAmmoBox = config.Bind(
+            "AutoPickup", "AutoPickupAmmoBox", true,
+            "Auto-pickup ammo boxes");
+        AutoPickupOxygenBox = config.Bind(
+            "AutoPickup", "AutoPickupOxygenBox", true,
+            "Auto-pickup oxygen boxes (chests)");
+        PickupRadius = config.Bind(
+            "AutoPickup", "PickupRadius", 1f,
+            "Radius around the player to auto-pick items (in game units). " +
+            "Oxygen boxes always use a fixed 1.0 radius regardless of this setting.");
+        // Ported from SuperDave
+        AutoDropCrabTraps = config.Bind(
+            "AutoPickup", "AutoDropCrabTraps", false,
+            "Automatically set up crab traps on nearby trap zones (uses max bait).");
+        AutoPickupDebugMode = config.Bind(
+            "AutoPickup", "AutoPickupDebugMode", false,
+            "Log each auto-pickup action for debugging.");
+
+        Plugin.Log.LogInfo($"AutoPickup initialized (enabled={Enabled.Value}, radius={PickupRadius.Value})");
+    }
+
+    /// <summary>
+    /// Core auto-pickup logic. Called from Harmony postfix on PlayerCharacter.Update.
+    /// </summary>
+    internal static void TryPickupNearby(PlayerCharacter player)
+    {
+        if (!Enabled.Value) return;
+
+        // Skip pickup when player is in cutscene/dialogue/locked state
+        bool isLocked = player.IsActionLock || player.IsScenarioPlaying;
+        if (isLocked)
+        {
+            if (!_wasLocked)
+            {
+                Plugin.Log.LogInfo($"AutoPickup: locked (ActionLock={player.IsActionLock}, Scenario={player.IsScenarioPlaying}) — pausing");
+                _wasLocked = true;
+            }
+            return;
+        }
+        if (_wasLocked)
+        {
+            _unlockTime = Time.time;
+            _wasLocked = false;
+            Plugin.Log.LogInfo("AutoPickup: unlocked — cooldown 1s");
+        }
+        if (Time.time - _unlockTime < UnlockCooldown)
+            return;
+
+        var playerPos = player.transform.position;
+        var radius = PickupRadius.Value;
+
+        // Clean up pending destroy set each frame
+        _pendingDestroy.RemoveWhere(go => go == null);
+
+        // Fish
+        if (AutoPickupFish.Value)
+        {
+            foreach (var fish in EntityRegistry.AllFish)
+            {
+                if (fish == null || fish.gameObject == null) continue;
+                if (_pendingDestroy.Contains(fish.gameObject)) continue;
+                if (fish.transform.position == Vector3.zero) continue;
+                if (Vector3.Distance(playerPos, fish.transform.position) > radius) continue;
+                if (fish.InteractionType != FishInteractionBody.FishInteractionType.Pickup) continue;
+
+                // Skip fish whose interaction is disabled (e.g. catchable creatures like
+                // sea angels/seahorses that require unlocking bug net via ConditionFishInteraction)
+                if (!fish.isInteractable)
+                    continue;
+
+                if (fish.CheckAvailableInteraction(player))
+                {
+                    fish.SuccessInteract(player);
+                    _pendingDestroy.Add(fish.gameObject);
+                }
+            }
+        }
+
+        // Items
+        if (AutoPickupItems.Value)
+        {
+            foreach (var item in EntityRegistry.AllItems)
+            {
+                if (item == null || item.gameObject == null) continue;
+                if (_pendingDestroy.Contains(item.gameObject)) continue;
+                if (item.isNeedSwapSetID != 0) continue; // swap-indicator ghost copy
+                if (item.transform.position == Vector3.zero) continue;
+                if (Vector3.Distance(playerPos, item.transform.position) > radius) continue;
+
+                // Skip weapons and equipment that trigger swap loops:
+                //   PickupInstanceMelee(Clone) — melee weapons
+                //   PickupInstanceWeapon(Clone) — ranged weapons
+                //   *HarpoonHead* — harpoon head upgrades
+                var goName = item.gameObject.name;
+                if (goName.StartsWith("PickupInstance") || goName.Contains("HarpoonHead"))
+                    continue;
+
+                // Skip ammo boxes if disabled, or when current gun ammo is full
+                if (goName.Contains("BulletBox"))
+                {
+                    if (!AutoPickupAmmoBox.Value) continue;
+                    var inventory = player.CurrentInstanceItemInventory;
+                    var gun = inventory?.gunHandler;
+                    if (gun != null && gun.IsBulletFull())
+                        continue;
+                }
+
+                // Skip sea urchins when player lacks sufficient grab level (no gloves)
+                var seaUrchin = item.TryCast<PickupInstanceItem_SeaUrchin>();
+                if (seaUrchin != null)
+                {
+                    var grabHandler = player.grabHandler;
+                    if (grabHandler == null || grabHandler.grabLevel < seaUrchin._grabLevel)
+                        continue;
+                }
+
+                if (item.CheckAvailableInteraction(player))
+                {
+                    item.SuccessInteract(player);
+                    _pendingDestroy.Add(item.gameObject);
+                }
+            }
+        }
+
+        // Chests
+        if (AutoOpenChests.Value)
+        {
+            foreach (var chest in EntityRegistry.AllChests)
+            {
+                if (chest == null || chest.gameObject == null) continue;
+                if (_pendingDestroy.Contains(chest.gameObject)) continue;
+                if (chest.transform.position == Vector3.zero) continue;
+                if (Vector3.Distance(playerPos, chest.transform.position) > radius) continue;
+                if (chest.IsOpen) continue;
+
+                // Skip oxygen boxes if disabled
+                var chestName = chest.gameObject.name;
+                bool isOxygen = chestName.Contains("O2") || chestName.Contains("ShellFish004");
+                if (!AutoPickupOxygenBox.Value && isOxygen)
+                    continue;
+
+                // Oxygen chests spawn an OxygenZone trigger at the chest location;
+                // the player must be close enough to enter it, so cap the radius.
+                if (isOxygen && Vector3.Distance(playerPos, chest.transform.position) > OxygenChestRadius)
+                    continue;
+
+                chest.SuccessInteract(player);
+                _pendingDestroy.Add(chest.gameObject);
+                if (AutoPickupDebugMode.Value) Plugin.Log.LogInfo($"[AutoPickup] chest {chestName}");
+            }
+        }
+
+        // Crab traps (ported from SuperDave)
+        if (AutoDropCrabTraps.Value && player.AvailableCrabTrapCount > 0)
+        {
+            foreach (var zone in EntityRegistry.AllCrabTraps)
+            {
+                if (zone == null || zone.gameObject == null) continue;
+                if (zone.transform.Find("CrabTrap(Clone)") != null) continue;
+                if (Vector3.Distance(playerPos, zone.transform.position) > radius) continue;
+                if (zone.CheckAvailableInteraction(player))
+                {
+                    zone.SetUpCrabTrap(9);
+                    if (AutoPickupDebugMode.Value) Plugin.Log.LogInfo("[AutoPickup] crab trap placed");
+                }
+            }
+        }
+    }
+}
+
+// --- Auto-pickup trigger patch ---
+
+[HarmonyPatch(typeof(PlayerCharacter), nameof(PlayerCharacter.Update))]
+public static class AutoPickupPatch
+{
+    private static void Postfix(PlayerCharacter __instance)
+    {
+        AutoPickup.TryPickupNearby(__instance);
+    }
+}

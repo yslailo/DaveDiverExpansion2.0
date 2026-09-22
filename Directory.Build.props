@@ -1,0 +1,122 @@
+<Project>
+
+  <!-- Import local GamePath (not in git) -->
+  <Import Project="$(MSBuildThisFileDirectory)GamePath.user.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)GamePath.user.props')" />
+
+  <PropertyGroup>
+    <TargetFramework>net480</TargetFramework>
+    <Platforms>AnyCPU</Platforms>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <!-- Resolve reference DLL paths: GamePath (local dev) or lib/ fallback (CI) -->
+  <PropertyGroup Condition="'$(GamePath)' != ''">
+    <BepInExPath>$(GamePath)\BepInEx\core</BepInExPath>
+    <InteropPath>$(GamePath)\BepInEx\interop</InteropPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(GamePath)' == ''">
+    <BepInExPath>$(MSBuildThisFileDirectory)lib\bepinex</BepInExPath>
+    <InteropPath>$(MSBuildThisFileDirectory)lib\interop</InteropPath>
+  </PropertyGroup>
+
+  <!-- BepInEx core references -->
+  <ItemGroup Label="BepInEx">
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExPath)\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="BepInEx.Core">
+      <HintPath>$(BepInExPath)\BepInEx.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="BepInEx.Unity.IL2CPP">
+      <HintPath>$(BepInExPath)\BepInEx.Unity.IL2CPP.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Il2CppInterop.Runtime">
+      <HintPath>$(BepInExPath)\Il2CppInterop.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Game interop references -->
+  <ItemGroup Label="Game">
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(InteropPath)\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Il2Cppmscorlib">
+      <HintPath>$(InteropPath)\Il2Cppmscorlib.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(InteropPath)\Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Sirenix.Serialization">
+      <HintPath>$(InteropPath)\Sirenix.Serialization.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>$(InteropPath)\Unity.TextMeshPro.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Unity interop references -->
+  <ItemGroup Label="Unity">
+    <Reference Include="UnityEngine">
+      <HintPath>$(InteropPath)\UnityEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(InteropPath)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(InteropPath)\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.Physics2DModule">
+      <HintPath>$(InteropPath)\UnityEngine.Physics2DModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(InteropPath)\UnityEngine.UI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(InteropPath)\UnityEngine.UIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(InteropPath)\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(InteropPath)\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.InputSystem">
+      <HintPath>$(InteropPath)\Unity.InputSystem.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="InputSystemWrapper">
+      <HintPath>$(InteropPath)\InputSystemWrapper.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Auto-deploy to game BepInEx/plugins after build -->
+  <Target Name="DeployToGame" AfterTargets="Build" Condition="'$(GamePath)' != ''">
+    <PropertyGroup>
+      <PluginDir>$(GamePath)\BepInEx\plugins\dave-diver-expansion2.0</PluginDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(PluginDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginDir)" SkipUnchangedFiles="true" />
+    <Message Text="Deployed to $(PluginDir)" Importance="high" />
+  </Target>
+
+</Project>

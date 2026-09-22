@@ -1,0 +1,43 @@
+# Build output
+bin/
+obj/
+
+# Local dev config
+GamePath.user.props
+
+# IDE
+.vs/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+
+# Compiled output (lib/ DLLs tracked via Git LFS)
+*.dll
+!lib/**/*.dll
+*.pdb
+*.exe
+*.nupkg
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# NuGet
+packages/
+
+# Decompiled game code (generated locally)
+decompiled/
+
+# AssetRipper exported assets (generated locally)
+ripped/
+
+# Node.js
+node_modules/
+
+# Temp files
+.tmp/
+
+# Claude
+.claude/settings.local.json

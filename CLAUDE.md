@@ -1,0 +1,153 @@
+# DaveDiverExpansion - AI 开发指南
+
+## 项目概述
+
+Dave the Diver 游戏 Mod，基于 BepInEx 6 Bleeding Edge + HarmonyX。
+游戏使用 **IL2CPP** 编译（非 Mono），所有游戏类型通过 BepInEx 生成的 interop DLL 访问。
+
+## 技术栈
+
+- C# / .NET Framework 4.8 (`net480`)
+- BepInEx 6 Bleeding Edge (IL2CPP), version 6.0.0-be.753
+- HarmonyX (运行时方法补丁) + Il2CppInterop (IL2CPP 类型桥接)
+- Unity 6000.0.52f1 (Unity 6), URP 渲染管线
+
+## 关键命令
+
+```bash
+# 构建（自动部署 DLL 到游戏 BepInEx/plugins/）
+dotnet build src/DaveDiverExpansion/DaveDiverExpansion.csproj
+
+# 查看 BepInEx 日志
+cat "<GamePath>/BepInEx/LogOutput.log"
+
+# 反编译游戏类（查看方法签名、字段）
+ilspycmd -t ClassName "<GamePath>/BepInEx/interop/Assembly-CSharp.dll"
+
+# 整体反编译到 decompiled/（推荐，一次性，6700+ 文件，方便 Grep 搜索）
+ilspycmd -p -o decompiled "<GamePath>/BepInEx/interop/Assembly-CSharp.dll"
+
+# 并发搜索反编译代码（同时搜索 decompiled/ 和 IsilDump/，19000+ 文件）
+node .tmp/search-decompiled.mjs "pattern1" "pattern2" "pattern3"
+
+# 查看方法的实际 native 实现（当 interop 只有 il2cpp_runtime_invoke 时）
+# IsilDump 位于 .tmp/cpp2il_out/IsilDump/Assembly-CSharp/ClassName.txt
+
+# Cpp2IL 反编译（ISIL 伪代码，能看到方法实现逻辑，产物在 .tmp/cpp2il_out/IsilDump/）
+Cpp2IL-Win.exe --game-path="<GamePath>" --output-root=.tmp/cpp2il_out --use-processor=isil
+
+# 游戏更新后，同步引用 DLL 到 lib/（供 CI 构建使用）
+bash scripts/update-lib.sh
+
+# 存档编解码（.sav ↔ .json，需要 Node.js >= 14）
+node tools/save-codec/decode.mjs GameSave_00_GD.sav   # 解密 → .json
+node tools/save-codec/decode.mjs GameSave_00_GD.json   # 加密 → .sav
+node tools/save-codec/decode.mjs --test GameSave_00_GD.sav  # 回环测试
+```
+
+## 架构
+
+```
+├── .github/workflows/release.yml  # CI: v* tag → 构建 → GitHub Release
+├── docs/                          # 详细文档（见下方索引）
+├── lib/                           # 引用 DLL（Git LFS）
+├── scripts/                       # setup-bepinex.sh, update-lib.sh
+├── tools/save-codec/              # 存档编解码工具（.sav ↔ .json）
+└── src/DaveDiverExpansion/
+    ├── Plugin.cs                  # BepInEx 入口，Harmony init
+    ├── Features/
+    │   ├── AutoPickup.cs          # 自动拾取（读取 EntityRegistry）
+    │   ├── ConfigUI.cs            # uGUI 配置面板 (F1)
+    │   ├── DiveMap.cs             # 潜水地图 HUD (M 键大地图 + 缩放拖拽, 小地图可配置位置)
+    │   ├── QuickSceneSwitch.cs    # 快速场景切换 (F2)
+    │   ├── AutoSeahorseRace.cs    # 海马赛自动操作
+    │   ├── iDiverExtension.cs     # iDiver 自定义升级项
+    │   ├── FishDensity.cs         # 鱼群密度增强（iDiver 生态保护升级驱动）
+    │   └── BettingExpansion.cs    # 娱乐场下注金额扩展
+    └── Helpers/
+        ├── EntityRegistry.cs      # 共享实体注册表 + 生命周期补丁
+        ├── I18n.cs                # 国际化 + SaveSystem API 语言检测
+        └── Il2CppHelper.cs        # IL2CPP 反射工具
+```
+
+- `Plugin.cs` — 入口点，`Load()` 中初始化各功能并调用 `_harmony.PatchAll()`
+- `Features/` — 每个功能独立为一个文件，含 `Init(ConfigFile)` + `[HarmonyPatch]` 类
+- `Helpers/EntityRegistry` — Harmony 生命周期补丁维护 `AllFish`/`AllItems`/`AllChests`/`AllBreakableOres`/`AllMiningNodes` HashSet，供 AutoPickup 和 DiveMap 共享读取。每 2s 通过 `Purge()` 清理已销毁对象
+
+## 文档索引
+
+开发时按需查阅，不必全部加载：
+
+| 文档 | 内容 | 何时查阅 |
+|------|------|----------|
+| [docs/game-classes.md](docs/game-classes.md) | 游戏类参考表、物品/鱼/宝箱分类、鱼交互条件系统、捕虫网/手套装备、玩家状态锁定、语言系统、场景切换系统 | 开发新 Harmony 补丁、操作游戏实体时 |
+| [docs/game-internals.md](docs/game-internals.md) | 反编译技巧、IsilDump 逆向、单例模式、场景层级、逆向工具、Burst/Job 限制、暂停菜单系统、存档加载管线、ObscuredString 加密、标题画面系统、**区域切换 PlayerCharacter 生命周期**（SavePlayerData 状态保存/恢复、bonus 累加陷阱） | 探索未知游戏类、排查反编译问题、存档系统调试、标题画面交互、**修改跨区域持久化的运行时值时** |
+| [docs/ugui-il2cpp-notes.md](docs/ugui-il2cpp-notes.md) | uGUI + IL2CPP 踩坑记录（布局、Dropdown 模板、ClassInjector） | 修改/新增 ConfigUI 面板 UI 时 |
+| [docs/divemap-perf.md](docs/divemap-perf.md) | DiveMap 性能优化数据（CPU/GPU profiling） | 优化 DiveMap 性能时 |
+| [docs/release-workflow.md](docs/release-workflow.md) | CI/CD、发布流程、NexusMods 上传、Playwright 自动化、DOM 选择器 | 发布新版本时 |
+| [docs/assetripper-usage.md](docs/assetripper-usage.md) | AssetRipper headless 用法、游戏翻译数据提取 | 需要提取游戏资源/翻译时 |
+| [docs/dlc-godzilla.md](docs/dlc-godzilla.md) | Godzilla DLC 结构（场景、类、AssetBundle 内容、游戏流程） | 开发涉及 DLC 内容/兼容性时 |
+| [docs/idiver-upgrade-system.md](docs/idiver-upgrade-system.md) | iDiver 升级系统逆向（SubEquipment/IntegratedItem/SpecDataBase 数据结构、鱼叉数据表、升级流程、MakeStatusDic 属性映射、武器伤害路径、存档结构、CallerCount 安全表、UIDataText 覆盖踩坑、自定义图标加载） | 修改 iDiver 升级面板、新增升级项、修改武器伤害时 |
+| [docs/fish-density-system.md](docs/fish-density-system.md) | 鱼群密度系统逆向（FishAllocator 生成流程、IsInstanced 时序、Boid 鱼群 vs 单体鱼差异、InGameManager.FishAllocators API、场景结构、实现方案对比） | 修改鱼群密度加倍功能时 |
+| [docs/seahorse-race-internals.md](docs/seahorse-race-internals.md) | 海马赛系统逆向（状态机、碰撞机制、OnObstacle 时序陷阱、仪表系统、AI 参数、赛道结构） | 修改海马赛自动操作功能时 |
+| [tools/save-codec/](tools/save-codec/) | 存档编解码工具（XOR `.sav` ↔ `.json`）、存档格式文档、移植笔记 | 需要读取/修改游戏存档时 |
+
+## 构建配置
+
+- `Directory.Build.props` — 入 Git，定义框架、引用、构建后自动部署
+- `GamePath.user.props` — **不入 Git**，定义 `$(GamePath)` 变量
+- 引用 DLL 解析：有 GamePath → 游戏目录；无 GamePath（CI）→ `lib/` 目录
+- 新增 interop 引用：在 `Directory.Build.props` 的 `<ItemGroup>` 中添加 `<Reference>`，然后运行 `bash scripts/update-lib.sh && git add lib/` 同步到 CI 引用目录
+
+## IL2CPP 注意事项
+
+- 游戏类型通过 `BepInEx/interop/` DLL 访问，Harmony 补丁目标是 interop 包装方法
+- 使用 `Il2CppHelper` 工具类访问私有字段，**不要用 `System.Reflection`**
+- `Object.FindObjectsOfType<T>()` 可用于扫描场景游戏对象
+- **`Singleton<T>.Instance` 会自动创建实例** — 安全检测用 `Singleton<T>._instance`
+- **Sirenix 依赖问题**：部分类型（如 `SABaseFishSystem`）不能直接 `GetComponent<T>()`，需通过 `IL2CPP.GetIl2CppClass()` + `Marshal.ReadIntPtr` 低级 API 访问（详见 [docs/game-classes.md](docs/game-classes.md) § 鱼攻击性检测）
+- **⛔ 不要 Harmony patch 继承链中的 virtual 方法**（如 `OnDie`）——IL2CPP trampoline 会在基类/兄弟类调用时崩溃，null guard 无效。用 `OnEnable`/`Awake` 注册 + `Purge()` 清理代替（详见 [docs/game-internals.md](docs/game-internals.md) § Harmony + IL2CPP Virtual 方法陷阱）
+- **⛔ 不要 Harmony patch `CallerCount` 极高的方法**——IL2CPP 中许多类的 `Awake`/`Start` 等 Unity 消息方法共享同一 method token，`CallerCount(29514)` 这种级别的方法 patch 后会导致游戏启动即崩溃。选 patch 目标前先在 `decompiled/` 中检查 `[CallerCount(N)]`，选 N 小的方法（详见 [docs/game-internals.md](docs/game-internals.md) § Harmony + IL2CPP CallerCount 陷阱）
+- **⛔ 不要 Harmony patch 序列化数据类的自动属性 getter**（如 `SaveUserOptions.get_CurrentLanguage`）——IL2CPP 会复用 getter 进行无关字段偏移读取，Postfix 收到大量垃圾值。获取游戏语言用 `Singleton<SaveSystem>._instance.UserOptionManager.CurrentLanguage`（详见 [docs/game-classes.md](docs/game-classes.md) § 游戏语言系统）
+- **鱼的死亡/捕获检测**：击杀走 `DisableInteraction()` → `IsEnableInteraction=false`；捕获可捕捉鱼（虾/海马）只对自身 `SetActive(false)` 而不调 `DisableInteraction`，需用 `!activeSelf && parent.activeSelf` 区分捕获和 streaming-out（详见 [docs/game-classes.md](docs/game-classes.md) § 鱼的死亡/捕获状态检测）
+- **⛔ `DelegateSupport.ConvertDelegate` 不可用于 UIDataText.OverrideTextFunc**——创建的 IL2CPP 委托对象非 null，但 native 代码调用时返回空值。覆盖 UIDataText 文本的正确做法：`uiDataText.enabled = false`（禁用 Refresh）+ 直接设 `TMP_Text.text`。复用面板需在 Prefix 恢复 `enabled = true`（详见 [docs/idiver-upgrade-system.md](docs/idiver-upgrade-system.md) § 4.2）
+- **CallerCount 只影响 Harmony patch，不影响 interop 调用** — CallerCount>0 的方法不能 patch（被内联），但通过 interop 属性/方法**直接调用**始终走 `il2cpp_runtime_invoke`，与内联无关。不要因为一个方法"不能 patch"就排除"调用"它
+- **⛔ `Object.Instantiate(运行时实例)` 会复制 IL2CPP native 状态** — 克隆的组件携带原始对象的初始化标志和 native 指针，导致 AI/协程等无法正确重新初始化。要创建功能正常的游戏对象，必须从 **prefab** 实例化（如调用游戏自身的工厂方法），而非克隆已运行的实例
+- **⛔ 区域切换会创建新 PlayerCharacter 并恢复运行时值** — 游戏通过 `SavePlayerData._StorePlayerAvailableItems` 保存 `AvailableLiftDroneCount`/`AvailableCrabTrapCount` 的**运行时值**（含 mod bonus），在新区域通过 `SetCharacterWithPlayerData` 恢复。修改这些值的 mod 代码不能在 PC 变更时重置跟踪状态，否则 bonus 每次区域切换累加。详见 [docs/game-internals.md](docs/game-internals.md) § 区域切换与 PlayerCharacter 生命周期
+
+## 配置系统
+
+- 所有配置通过 BepInEx `ConfigFile` 管理，自动生成 `.cfg` 文件
+- 内置 uGUI 配置面板（F1 打开），自动发现所有 `ConfigEntry`，语言切换即时生效
+- Section 顺序：`ConfigUI` → `QuickSceneSwitch` → `AutoPickup` → `DiveMap` → `AutoSeahorseRace` → `BettingExpansion` → `iDiverExtension` → `Debug`
+- 子功能配置项放在父 section 下（如 `FishDensityEnabled` 在 `iDiverExtension` section 下，类似 DiveMap 下的 MiniMap 配置）
+- 控件类型：`bool` → Toggle，`float`/`int` → Slider，`KeyCode` → "Press any key" 按钮，`enum` → Dropdown（选项文本经 `I18n.T()` 翻译）
+- Section 内条目排序：通过 `ConfigUI.RebuildEntries` 中的 `entryOrder` 字典控制 UI 显示顺序（不依赖 cfg 文件中的 bind 顺序）
+- uGUI 开发踩坑记录：[docs/ugui-il2cpp-notes.md](docs/ugui-il2cpp-notes.md)
+
+## 国际化 (i18n)
+
+- `I18n.T("Enabled")` — 中文返回 `"启用"`，英文返回 `"Enabled"`
+- 添加翻译：在 `I18n.cs` 的 `ZhCn` 字典添加 `["English Key"] = "中文值"`
+- **英文 key 使用空格分词**（如 `"Catchable Fish"`），因为英文模式下 key 直接作为显示文本
+- enum 值也需翻译（ConfigUI Dropdown 选项经 `I18n.T()` 处理），如 `["TopRight"] = "右上"`
+- 语言检测：ConfigEntry 手动设置 > `SeenChinese` 标记 > `Application.systemLanguage`
+- **语言即时切换**：ConfigUI 和 DiveMap 图例均支持运行时语言切换，通过检测 `I18n.IsChinese()` 变化触发 UI 重建/刷新（详见 [docs/ugui-il2cpp-notes.md](docs/ugui-il2cpp-notes.md) § 语言即时切换模式）
+
+## 开发原则
+
+- 每个功能独立为一个文件，含 `Init(ConfigFile)` + `[HarmonyPatch]` 类
+- 所有配置项通过 `config.Bind(section, key, default, description)` 管理
+- 使用 `Plugin.Log` 记录日志（`LogInfo`, `LogWarning`, `LogError`）
+- 代码注释用英文，CLAUDE.md 用中文，README.md 用英文，Git commit 用英文
+- **优先复用游戏自身的代码路径** — 当需要创建/修改游戏对象时，先找到游戏本身用什么 API 完成同样的事（如 `DoInstanceFishOrGroup`），直接调用它；而不是尝试从外部克隆/hack。游戏内部的初始化流程有大量隐式依赖，自己重建这些依赖几乎必然遗漏
+- **切换方案时，先提取当前方案中已验证的结论** — 如果当前方案的核心机制已被验证（如"通过 allocator 重新生成的鱼能正常动"），切换方案时应保留这些结论作为约束，而非从零开始探索
+
+## 新功能开发工作流
+
+1. 确保 `decompiled/` 目录存在（整体反编译）
+2. 用 Grep 在 `decompiled/` 中搜索关键类名/方法名
+3. 若 ilspycmd 反编译失败，可查 `.tmp/cpp2il_out/IsilDump/` 中的 ISIL 伪代码（汇编级但有实现逻辑）
+4. 查阅 [docs/game-classes.md](docs/game-classes.md) 确认类型和方法签名
+5. 编写 `[HarmonyPatch]` + 在 `Plugin.cs` 的 `Load()` 中初始化
+6. `dotnet build` → 启动游戏测试 → 查看 `LogOutput.log`
