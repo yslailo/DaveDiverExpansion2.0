@@ -1,9 +1,18 @@
-# DaveDiverExpansion - AI 开发指南
+# DaveDiverExpansion 2.0 - AI 开发指南
 
 ## 项目概述
 
 Dave the Diver 游戏 Mod，基于 BepInEx 6 Bleeding Edge + HarmonyX。
 游戏使用 **IL2CPP** 编译（非 Mono），所有游戏类型通过 BepInEx 生成的 interop DLL 访问。
+
+本项目 = **DaveDiverExpansion 框架**（保留原有功能 + F1 游戏内配置面板）+ 合并进来的
+**SuperDave / SuperDave 2.0** 功能（即原 "SuperDave 3.0"）。
+
+- 插件名：`dave-diver-expansion2.0`
+- GUID：`com.davediver.expansion2.0`
+- 程序集 / DLL：`dave-diver-expansion2.0.dll`
+- 部署目录：`BepInEx/plugins/dave-diver-expansion2.0/`
+- 配置文件：`BepInEx/config/com.davediver.expansion2.0.cfg`
 
 ## 技术栈
 
@@ -15,8 +24,8 @@ Dave the Diver 游戏 Mod，基于 BepInEx 6 Bleeding Edge + HarmonyX。
 ## 关键命令
 
 ```bash
-# 构建（自动部署 DLL 到游戏 BepInEx/plugins/）
-dotnet build src/DaveDiverExpansion/DaveDiverExpansion.csproj
+# 构建（自动部署 dave-diver-expansion2.0.dll 到游戏 BepInEx/plugins/dave-diver-expansion2.0/）
+dotnet build src/DaveDiverExpansion/DaveDiverExpansion.csproj -c Release
 
 # 查看 BepInEx 日志
 cat "<GamePath>/BepInEx/LogOutput.log"
@@ -54,25 +63,39 @@ node tools/save-codec/decode.mjs --test GameSave_00_GD.sav  # 回环测试
 ├── scripts/                       # setup-bepinex.sh, update-lib.sh
 ├── tools/save-codec/              # 存档编解码工具（.sav ↔ .json）
 └── src/DaveDiverExpansion/
-    ├── Plugin.cs                  # BepInEx 入口，Harmony init
+    ├── Plugin.cs                  # BepInEx 入口，Harmony init，注册各功能 Init(Config)
     ├── Features/
-    │   ├── AutoPickup.cs          # 自动拾取（读取 EntityRegistry）
+    │   ├── AutoPickup.cs          # 自动拾取（读取 EntityRegistry；含 SuperDave 的自动放渔笼/调试选项）
     │   ├── ConfigUI.cs            # uGUI 配置面板 (F1)
     │   ├── DiveMap.cs             # 潜水地图 HUD (M 键大地图 + 缩放拖拽, 小地图可配置位置)
     │   ├── QuickSceneSwitch.cs    # 快速场景切换 (F2)
     │   ├── AutoSeahorseRace.cs    # 海马赛自动操作
     │   ├── iDiverExtension.cs     # iDiver 自定义升级项
     │   ├── FishDensity.cs         # 鱼群密度增强（iDiver 生态保护升级驱动）
-    │   └── BettingExpansion.cs    # 娱乐场下注金额扩展
+    │   ├── BettingExpansion.cs    # 娱乐场下注金额扩展
+    │   ├── SaveDebug.cs           # 存档调试
+    │   └── SuperDave/             # 从 SuperDave / SuperDave 2.0 移植的功能
+    │       ├── SuperDaveCore.cs       # 总开关 + 缓存 Player/Character（Awake 补丁）
+    │       ├── SuperDaveRuntime.cs    # 潜水时 tick（无人机/子弹/鱼叉头/光环）
+    │       ├── SuperDaveHotkeys.cs    # 全部热键（ConfigEntry<KeyCode>，F1 可重绑）
+    │       ├── WalkSpeed.cs           # 船上/农场/鱼场/寿司店速度
+    │       ├── DiveBuffs.cs           # 无限氧气/无敌/减重/禁弹窗/游泳加速/无限子弹
+    │       ├── DroneTrap.cs           # 无限无人机/无限渔笼
+    │       ├── ToxicAura.cs           # 剧毒光环（复用 EntityRegistry.AllFish）
+    │       ├── SushiBar.cs            # 顾客耐心/芥末/金钱/员工烹饪
+    │       ├── HarpoonHead.cs         # 默认鱼叉头
+    │       └── WeaponControl.cs       # 治疗/换枪/武器等级
     └── Helpers/
         ├── EntityRegistry.cs      # 共享实体注册表 + 生命周期补丁
         ├── I18n.cs                # 国际化 + SaveSystem API 语言检测
-        └── Il2CppHelper.cs        # IL2CPP 反射工具
+        ├── Il2CppHelper.cs        # IL2CPP 反射工具（托管侧）
+        └── Il2CppReflection.cs    # 原生 Il2Cpp 字段读写（il2cpp_get_field/_value）
 ```
 
-- `Plugin.cs` — 入口点，`Load()` 中初始化各功能并调用 `_harmony.PatchAll()`
+- `Plugin.cs` — 入口点，`Load()` 中初始化各功能（含 `SuperDave.*.Init(Config)`）并调用 `_harmony.PatchAll()`
 - `Features/` — 每个功能独立为一个文件，含 `Init(ConfigFile)` + `[HarmonyPatch]` 类
-- `Helpers/EntityRegistry` — Harmony 生命周期补丁维护 `AllFish`/`AllItems`/`AllChests`/`AllBreakableOres`/`AllMiningNodes` HashSet，供 AutoPickup 和 DiveMap 共享读取。每 2s 通过 `Purge()` 清理已销毁对象
+- `Features/SuperDave/` — 移植的 SuperDave 功能；统一用 `SuperDaveCore.Enabled` 总开关，热键走 `SuperDaveHotkeys`，潜水期逻辑由 `SuperDaveRuntime`（挂在 `PlayerCharacter.Update` postfix）驱动
+- `Helpers/EntityRegistry` — Harmony 生命周期补丁维护 `AllFish`/`AllItems`/`AllChests`/`AllBreakableOres`/`AllMiningNodes`/`AllCrabTraps` HashSet，供 AutoPickup、DiveMap、ToxicAura 共享读取。每 2s 通过 `Purge()` 清理已销毁对象
 
 ## 文档索引
 
@@ -96,13 +119,15 @@ node tools/save-codec/decode.mjs --test GameSave_00_GD.sav  # 回环测试
 
 - `Directory.Build.props` — 入 Git，定义框架、引用、构建后自动部署
 - `GamePath.user.props` — **不入 Git**，定义 `$(GamePath)` 变量
+- `DaveDiverExpansion.csproj` — `<AssemblyName>` 为 `dave-diver-expansion2.0`（DLL 名），`<RootNamespace>` 仍为 `DaveDiverExpansion`（代码命名空间）
 - 引用 DLL 解析：有 GamePath → 游戏目录；无 GamePath（CI）→ `lib/` 目录
+- 构建产物：`src/DaveDiverExpansion/bin/Release/net480/dave-diver-expansion2.0.dll`，`DeployToGame` 目标自动拷贝到 `$(GamePath)\BepInEx\plugins\dave-diver-expansion2.0\`
 - 新增 interop 引用：在 `Directory.Build.props` 的 `<ItemGroup>` 中添加 `<Reference>`，然后运行 `bash scripts/update-lib.sh && git add lib/` 同步到 CI 引用目录
 
 ## IL2CPP 注意事项
 
 - 游戏类型通过 `BepInEx/interop/` DLL 访问，Harmony 补丁目标是 interop 包装方法
-- 使用 `Il2CppHelper` 工具类访问私有字段，**不要用 `System.Reflection`**
+- **访问游戏字段的优先级**：① interop 生成的属性（Il2CppInterop 会把字段生成为 get/set 属性，如 `LobbyPlayer.m_MoveSpeed`）→ ② `Il2CppReflection.GetField/GetFieldValue<T>()`（原生 Il2Cpp 反射，等价于 SuperDave 的 `ReflectionUtils.il2cpp_get_field`）。**⛔ 不要用 `System.Reflection` 的 `GetField`**——Il2CppInterop 把字段暴露成属性，`GetField` 会返回 null
 - `Object.FindObjectsOfType<T>()` 可用于扫描场景游戏对象
 - **`Singleton<T>.Instance` 会自动创建实例** — 安全检测用 `Singleton<T>._instance`
 - **Sirenix 依赖问题**：部分类型（如 `SABaseFishSystem`）不能直接 `GetComponent<T>()`，需通过 `IL2CPP.GetIl2CppClass()` + `Marshal.ReadIntPtr` 低级 API 访问（详见 [docs/game-classes.md](docs/game-classes.md) § 鱼攻击性检测）
@@ -119,7 +144,8 @@ node tools/save-codec/decode.mjs --test GameSave_00_GD.sav  # 回环测试
 
 - 所有配置通过 BepInEx `ConfigFile` 管理，自动生成 `.cfg` 文件
 - 内置 uGUI 配置面板（F1 打开），自动发现所有 `ConfigEntry`，语言切换即时生效
-- Section 顺序：`ConfigUI` → `QuickSceneSwitch` → `AutoPickup` → `DiveMap` → `AutoSeahorseRace` → `BettingExpansion` → `iDiverExtension` → `Debug`
+- Section 顺序（见 `ConfigUI.RebuildEntries` 的 `sectionOrder`）：`ConfigUI` → `SuperDave` → `DiveMap` → `AutoPickup` → `QuickSceneSwitch` → `Diving` → `Boat` → `Farm` → `FishFarm` → `Sushi` → `Harpoon` → `Hotkeys` → `AutoSeahorseRace` → `BettingExpansion` → `iDiverExtension` → `Debug`（未列出的 section 追加到末尾）
+- SuperDave 相关分区：`SuperDave`（总开关 `SuperDaveCore.Enabled`）/ `Diving`（潜水 buff、无人机、渔笼、剧毒光环）/ `Boat` / `Farm` / `FishFarm` / `Sushi`（速度与寿司店）/ `Harpoon`（默认鱼叉头）/ `Hotkeys`（全部热键，`ConfigEntry<KeyCode>`）
 - 子功能配置项放在父 section 下（如 `FishDensityEnabled` 在 `iDiverExtension` section 下，类似 DiveMap 下的 MiniMap 配置）
 - 控件类型：`bool` → Toggle，`float`/`int` → Slider，`KeyCode` → "Press any key" 按钮，`enum` → Dropdown（选项文本经 `I18n.T()` 翻译）
 - Section 内条目排序：通过 `ConfigUI.RebuildEntries` 中的 `entryOrder` 字典控制 UI 显示顺序（不依赖 cfg 文件中的 bind 顺序）
@@ -129,6 +155,7 @@ node tools/save-codec/decode.mjs --test GameSave_00_GD.sav  # 回环测试
 
 - `I18n.T("Enabled")` — 中文返回 `"启用"`，英文返回 `"Enabled"`
 - 添加翻译：在 `I18n.cs` 的 `ZhCn` 字典添加 `["English Key"] = "中文值"`
+- **配置项/描述的翻译 key 必须与代码里的 key / `description` 字符串逐字一致**（包括 `"Diving - ..."`、`"Sushi - ..."` 这类前缀），因为 `ConfigUI` 直接用 `entry.Definition.Key` 和 `entry.Description.Description` 调用 `I18n.T()`；不一致就会显示英文原文
 - **英文 key 使用空格分词**（如 `"Catchable Fish"`），因为英文模式下 key 直接作为显示文本
 - enum 值也需翻译（ConfigUI Dropdown 选项经 `I18n.T()` 处理），如 `["TopRight"] = "右上"`
 - 语言检测：ConfigEntry 手动设置 > `SeenChinese` 标记 > `Application.systemLanguage`
