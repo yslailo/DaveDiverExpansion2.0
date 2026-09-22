@@ -25,7 +25,9 @@ jobs:
       - name: Package
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}"
+          # Strip the leading "v" so the artifact is e.g. DaveDiverExpansion-2.0.1.zip
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          Add-Content -Path $env:GITHUB_ENV -Value "VERSION=$version"
           $dir = "package/BepInEx/plugins/dave-diver-expansion2.0"
           New-Item -ItemType Directory -Path $dir -Force
           Copy-Item "src/DaveDiverExpansion/bin/Release/net480/dave-diver-expansion2.0.dll" $dir
@@ -35,6 +37,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: DaveDiverExpansion-*.zip
+          name: DaveDiverExpansion-${{ env.VERSION }}
           generate_release_notes: true
 
       - name: Upload to NexusMods
@@ -44,6 +47,6 @@ jobs:
           api_key: ${{ secrets.NEXUSMODS_API_KEY }}
           game_domain_name: davethediver
           file_id: ${{ vars.NEXUSMODS_FILE_ID }}
-          filename: DaveDiverExpansion-${{ github.ref_name }}.zip
-          version: ${{ github.ref_name }}
+          filename: DaveDiverExpansion-${{ env.VERSION }}.zip
+          version: ${{ env.VERSION }}
           fileCategory: main
