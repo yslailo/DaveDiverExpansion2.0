@@ -42,6 +42,8 @@ public class Plugin : BasePlugin
         WeaponControl.Init(Config);
         SuperDaveHotkeys.Init(Config);
 
+        AuraHud.Init(Config); // status HUD (aura + common toggles)
+
         ConfigUI.Init(Config); // Must be after other features so it discovers their ConfigEntries
         // Apply Harmony patches
         _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
@@ -55,6 +57,6 @@ internal static class MyPluginInfo
 {
     public const string PLUGIN_GUID = "com.davediver.expansion2.0";
     public const string PLUGIN_NAME = "dave-diver-expansion2.0";
-    public const string PLUGIN_VERSION = "2.0.1";
+    public const string PLUGIN_VERSION = "2.0.2";
 }
 

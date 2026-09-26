@@ -326,6 +326,79 @@ public static class ConfigUI
         _overlayGO.SetActive(false);
     }
 
+    // ---- Display grouping: merge the raw config sections into 6 functional areas ----
+    // Raw config sections stay unchanged (so existing .cfg files keep working); only the
+    // panel rendering is regrouped.
+
+    private static readonly string[] GroupOrder =
+    {
+        "Diving", "Farming", "Sushi", "Map", "Automation", "System"
+    };
+
+    // config section -> display group
+    private static readonly Dictionary<string, string> SectionGroup = new()
+    {
+        ["Diving"] = "Diving",
+        ["Harpoon"] = "Diving",
+        ["iDiverExtension"] = "Diving",
+        ["Boat"] = "Diving",
+        ["AuraHud"] = "Diving",
+
+        ["Farm"] = "Farming",
+        ["FishFarm"] = "Farming",
+
+        ["Sushi"] = "Sushi",
+
+        ["DiveMap"] = "Map",
+
+        ["AutoPickup"] = "Automation",
+        ["AutoSeahorseRace"] = "Automation",
+        ["BettingExpansion"] = "Automation",
+        ["QuickSceneSwitch"] = "Automation",
+
+        ["ConfigUI"] = "System",
+        ["SuperDave"] = "System",
+        ["Hotkeys"] = "System",
+        ["Debug"] = "System",
+    };
+
+    // Individual entries that belong to a different group than their section.
+    // (Splits the Hotkeys section so each hotkey sits next to the feature it drives.)
+    private static readonly Dictionary<string, string> EntryGroupOverride = new()
+    {
+        ["Hotkeys/Toggle Toxic Aura"] = "Diving",
+        ["Hotkeys/Change Toxic Aura Mode"] = "Diving",
+        ["Hotkeys/Heal"] = "Diving",
+        ["Hotkeys/Net Gun"] = "Diving",
+        ["Hotkeys/Tranq Gun"] = "Diving",
+        ["Hotkeys/Sniper"] = "Diving",
+        ["Hotkeys/Weapon Up"] = "Diving",
+        ["Hotkeys/Weapon Down"] = "Diving",
+    };
+
+    // Sub-section (source config section) order inside each group
+    private static readonly Dictionary<string, string[]> GroupSubOrder = new()
+    {
+        ["Diving"] = new[] { "Diving", "Harpoon", "iDiverExtension", "AuraHud", "Boat", "Hotkeys" },
+        ["Farming"] = new[] { "Farm", "FishFarm" },
+        ["Sushi"] = new[] { "Sushi" },
+        ["Map"] = new[] { "DiveMap" },
+        ["Automation"] = new[] { "AutoPickup", "AutoSeahorseRace", "BettingExpansion", "QuickSceneSwitch" },
+        ["System"] = new[] { "ConfigUI", "SuperDave", "Hotkeys", "Debug" },
+    };
+
+    // Per-section entry ordering (key name -> display position)
+    private static readonly Dictionary<string, string[]> EntryOrder = new()
+    {
+        ["DiveMap"] = new[] {
+            "Enabled", "ToggleKey",
+            "MiniMapEnabled", "MiniMapPosition", "MiniMapOffsetX", "MiniMapOffsetY",
+            "MapSize", "MiniMapZoom", "MapOpacity",
+            "ShowEscapePods", "ShowOres", "ShowFish", "ShowAggressiveFish", "ShowCatchableFish", "ShowDistantFish", "ShowItems", "ShowChests", "ShowCrabTraps"
+        },
+        ["Debug"] = new[] { "DebugLog", "DiveMapDebugLog", "AutoContinue" }
+    };
+
     private static void RebuildEntries()
     {
         if (_descText != null) _descText.text = "";
@@ -347,90 +420,104 @@ public static class ConfigUI
             return;
         }
 
-        // Group entries by section
-        var sections = new Dictionary<string, List<ConfigEntryBase>>();
+        // Bucket every entry into: display group -> source section -> entries
+        var groups = new Dictionary<string, Dictionary<string, List<ConfigEntryBase>>>();
         foreach (var kv in _configFile)
         {
-            var section = kv.Key.Section;
-            var entry = kv.Value;
+            string section = kv.Key.Section;
+            string key = kv.Key.Key;
+            string group = ResolveGroup(section, key);
 
-            if (!sections.ContainsKey(section))
-                sections[section] = new List<ConfigEntryBase>();
-            sections[section].Add(entry);
+            if (!groups.TryGetValue(group, out var subs))
+                groups[group] = subs = new Dictionary<string, List<ConfigEntryBase>>();
+            if (!subs.TryGetValue(section, out var list))
+                subs[section] = list = new List<ConfigEntryBase>();
+            list.Add(kv.Value);
         }
 
-        // Display in explicit order; any unknown sections appended at the end
-        var sectionOrder = new[] {
-            "ConfigUI", "SuperDave", "DiveMap", "AutoPickup", "QuickSceneSwitch",
-            "Diving", "Boat", "Farm", "FishFarm", "Sushi", "Harpoon", "Hotkeys",
-            "AutoSeahorseRace", "BettingExpansion", "iDiverExtension", "Debug"
-        };
-        var ordered = new List<KeyValuePair<string, List<ConfigEntryBase>>>();
-        foreach (var name in sectionOrder)
-        {
-            if (sections.TryGetValue(name, out var list))
-                ordered.Add(new KeyValuePair<string, List<ConfigEntryBase>>(name, list));
-        }
-        foreach (var kv in sections)
-        {
-            if (Array.IndexOf(sectionOrder, kv.Key) < 0)
-                ordered.Add(kv);
-        }
+        // Ordered list of groups (unknown groups appended at the end)
+        var orderedGroups = new List<string>();
+        foreach (var g in GroupOrder)
+            if (groups.ContainsKey(g)) orderedGroups.Add(g);
+        foreach (var g in groups.Keys)
+            if (!orderedGroups.Contains(g)) orderedGroups.Add(g);
 
-        // Per-section entry ordering (key name → display position)
-        var entryOrder = new Dictionary<string, string[]>
+        foreach (var group in orderedGroups)
         {
-            ["DiveMap"] = new[] {
-                "Enabled", "ToggleKey",
-                "MiniMapEnabled", "MiniMapPosition", "MiniMapOffsetX", "MiniMapOffsetY",
-                "MapSize", "MiniMapZoom", "MapOpacity",
-                "ShowEscapePods", "ShowOres", "ShowFish", "ShowAggressiveFish", "ShowCatchableFish", "ShowDistantFish", "ShowItems", "ShowChests", "ShowCrabTraps"
-            },
-            ["Debug"] = new[] { "DebugLog", "DiveMapDebugLog", "AutoContinue" }
-        };
+            var subs = groups[group];
 
-        foreach (var section in ordered)
-        {
-            var entries = section.Value;
-            if (entryOrder.TryGetValue(section.Key, out var keyOrder))
+            // Group header
+            AddHeader(contentRT.gameObject, "Group_" + group, I18n.T(group), 19, new Color(0.55f, 0.78f, 1f));
+
+            // Sub-section order inside this group
+            var subOrder = new List<string>();
+            if (GroupSubOrder.TryGetValue(group, out var so))
+                foreach (var s in so)
+                    if (subs.ContainsKey(s)) subOrder.Add(s);
+            foreach (var s in subs.Keys)
+                if (!subOrder.Contains(s)) subOrder.Add(s);
+
+            bool multiSub = subOrder.Count > 1;
+            foreach (var section in subOrder)
             {
-                var orderMap = new Dictionary<string, int>();
-                for (int i = 0; i < keyOrder.Length; i++)
-                    orderMap[keyOrder[i]] = i;
-                entries.Sort((a, b) =>
+                var entries = subs[section];
+
+                // Sub-header, unless it would just repeat the group name
+                if (multiSub && I18n.T(section) != I18n.T(group))
+                    AddHeader(contentRT.gameObject, "Sub_" + section, I18n.T(section), 15, new Color(0.65f, 0.72f, 0.85f));
+
+                if (EntryOrder.TryGetValue(section, out var keyOrder))
+                    SortEntries(entries, keyOrder);
+
+                foreach (var entry in entries)
                 {
-                    bool aHas = orderMap.TryGetValue(a.Definition.Key, out int aIdx);
-                    bool bHas = orderMap.TryGetValue(b.Definition.Key, out int bIdx);
-                    if (aHas && bHas) return aIdx.CompareTo(bIdx);
-                    if (aHas) return -1;
-                    if (bHas) return 1;
-                    return 0;
-                });
-            }
-
-            // Section header
-            var sectionGO = CreateUIObject("Section_" + section.Key, contentRT.gameObject);
-            _sectionObjects.Add(sectionGO);
-            var sectionLE = sectionGO.AddComponent<LayoutElement>();
-            sectionLE.preferredHeight = 30;
-            sectionLE.flexibleHeight = 0;
-            var sectionText = sectionGO.AddComponent<Text>();
-            sectionText.text = I18n.T(section.Key);
-            sectionText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-            sectionText.fontSize = 18;
-            sectionText.fontStyle = FontStyle.Bold;
-            sectionText.color = new Color(0.6f, 0.75f, 1f);
-            sectionText.alignment = TextAnchor.MiddleLeft;
-
-            foreach (var entry in entries)
-            {
-                var rowGO = CreateEntryRow(contentRT.gameObject, entry);
-                _sectionObjects.Add(rowGO);
+                    var rowGO = CreateEntryRow(contentRT.gameObject, entry);
+                    _sectionObjects.Add(rowGO);
+                }
             }
         }
 
         // Reset button at the bottom
         CreateResetButton(contentRT.gameObject);
+    }
+
+    private static string ResolveGroup(string section, string key)
+    {
+        if (EntryGroupOverride.TryGetValue(section + "/" + key, out var g)) return g;
+        if (SectionGroup.TryGetValue(section, out g)) return g;
+        return "System";
+    }
+
+    private static void AddHeader(GameObject parent, string name, string text, int fontSize, Color color)
+    {
+        var go = CreateUIObject(name, parent);
+        _sectionObjects.Add(go);
+        var le = go.AddComponent<LayoutElement>();
+        le.preferredHeight = fontSize + 12;
+        le.flexibleHeight = 0;
+        var t = go.AddComponent<Text>();
+        t.text = text;
+        t.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        t.fontSize = fontSize;
+        t.fontStyle = FontStyle.Bold;
+        t.color = color;
+        t.alignment = TextAnchor.MiddleLeft;
+    }
+
+    private static void SortEntries(List<ConfigEntryBase> entries, string[] keyOrder)
+    {
+        var orderMap = new Dictionary<string, int>();
+        for (int i = 0; i < keyOrder.Length; i++)
+            orderMap[keyOrder[i]] = i;
+        entries.Sort((a, b) =>
+        {
+            bool aHas = orderMap.TryGetValue(a.Definition.Key, out int aIdx);
+            bool bHas = orderMap.TryGetValue(b.Definition.Key, out int bIdx);
+            if (aHas && bHas) return aIdx.CompareTo(bIdx);
+            if (aHas) return -1;
+            if (bHas) return 1;
+            return 0;
+        });
     }
 
     private static void CreateResetButton(GameObject parent)
@@ -1117,6 +1204,7 @@ public class ConfigUIBehaviour : MonoBehaviour
     {
         ConfigUI.CheckToggle();
         ConfigUI.AutoContinueCheck();
+        AuraHud.Update();
         QuickSceneSwitch.CheckToggle();
         AutoSeahorseRace.CheckHotkey();
         SuperDave.SuperDaveHotkeys.Check();

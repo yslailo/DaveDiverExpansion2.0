@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using BepInEx.Configuration;
 using Common.Contents;
@@ -57,16 +58,81 @@ static class WalkSpeedBoatPatch
     }
 }
 
-[HarmonyPatch(typeof(Farm.FarmPlayerView), "Setup")]
-static class WalkSpeedFarmPatch
+/// <summary>
+/// Farm walk speed.
+///
+/// The original SuperDave only patched FarmPlayerView.Setup, so a multiplier changed while
+/// already on the farm (e.g. from the F1 panel) never applied until the farm was reloaded.
+/// Capture the untouched base speed per instance and re-apply on every Move so the value is live.
+/// </summary>
+internal static class FarmSpeed
 {
-    static void Postfix(Farm.FarmPlayerView __instance)
+    private static readonly Dictionary<int, (float min, float max)> _base = new();
+    private static readonly HashSet<int> _logged = new();
+
+    public static void Apply(Farm.FarmPlayerView view)
     {
+        if (view == null) return;
         try
         {
-            if (!SuperDaveCore.Enabled.Value || WalkSpeed.FarmWalkMultiplier.Value <= 0f) return;
-            __instance.m_Speed_Min *= WalkSpeed.FarmWalkMultiplier.Value;
-            __instance.m_Speed_Max *= WalkSpeed.FarmWalkMultiplier.Value;
+            int id = view.GetInstanceID();
+            if (!_base.TryGetValue(id, out var b))
+            {
+                b = (view.m_Speed_Min, view.m_Speed_Max);
+                _base[id] = b;
+            }
+
+            float mult = SuperDaveCore.Enabled.Value ? WalkSpeed.FarmWalkMultiplier.Value : 0f;
+            float min = mult > 0f ? b.min * mult : b.min;
+            float max = mult > 0f ? b.max * mult : b.max;
+
+            view.m_Speed_Min = min;
+            view.m_Speed_Max = max;
+
+            if (_logged.Add(id))
+                Plugin.Log.LogInfo($"[WalkSpeed] Farm: base=({b.min}, {b.max}) mult={mult} -> ({min}, {max})");
+        }
+        catch (Exception e)
+        {
+            Plugin.Log.LogError("[WalkSpeed] Farm apply error: " + e.Message);
+        }
+    }
+}
+
+[HarmonyPatch(typeof(Farm.FarmPlayerView), "Setup")]
+static class WalkSpeedFarmSetupPatch
+{
+    static void Postfix(Farm.FarmPlayerView __instance) => FarmSpeed.Apply(__instance);
+}
+
+[HarmonyPatch(typeof(Farm.FarmPlayerView), "Move")]
+static class WalkSpeedFarmMovePatch
+{
+    static void Postfix(Farm.FarmPlayerView __instance) => FarmSpeed.Apply(__instance);
+}
+
+/// <summary>
+/// Fish farm walk speed. Like the farm, capture the base speed per instance and re-apply every
+/// Move so multiplier changes take effect live instead of only once.
+/// </summary>
+internal static class FishFarmSpeed
+{
+    private static readonly Dictionary<int, float> _base = new();
+
+    public static void Apply(FishFarm.FishFarmPlayerView view)
+    {
+        if (view == null) return;
+        try
+        {
+            int id = view.GetInstanceID();
+            if (!_base.TryGetValue(id, out var b))
+            {
+                b = view.Dave_Speed;
+                _base[id] = b;
+            }
+
+            float mult = SuperDaveCore.Enabled.Value ? WalkSpeed.FishFarmWalkMultiplier.Value : 0f;
+            view.Dave_Speed = mult > 0f ? b * mult : b;
         }
         catch { }
     }
@@ -75,19 +141,7 @@ static class WalkSpeedFarmPatch
 [HarmonyPatch(typeof(FishFarm.FishFarmPlayerView), "Move")]
 static class WalkSpeedFishFarmPatch
 {
-    private static readonly HashSet<int> _patched = new();
-
-    static void Postfix(FishFarm.FishFarmPlayerView __instance)
-    {
-        try
-        {
-            if (!SuperDaveCore.Enabled.Value || WalkSpeed.FishFarmWalkMultiplier.Value <= 0f) return;
-            int id = __instance.GetInstanceID();
-            if (!_patched.Add(id)) return;
-            __instance.Dave_Speed *= WalkSpeed.FishFarmWalkMultiplier.Value;
-        }
-        catch { }
-    }
+    static void Postfix(FishFarm.FishFarmPlayerView __instance) => FishFarmSpeed.Apply(__instance);
 }
 
 [HarmonyPatch(typeof(DaveMoveValue), "speedMultiplier", MethodType.Getter)]

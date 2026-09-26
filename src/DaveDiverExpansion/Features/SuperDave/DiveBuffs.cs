@@ -71,18 +71,122 @@ static class DiveBuffsHpDamagePatch
     }
 }
 
-[HarmonyPatch(typeof(IntegratedItem), "BuildItem")]
-static class DiveBuffsWeightlessPatch
+/// <summary>
+/// Weightless items (infinite carry weight).
+///
+/// IMPORTANT: this feature must never write to shared/stored data (e.g. Items.ItemWeight or
+/// IntegratedItem.ItemWeight), because those writes persist for the whole game session and
+/// cannot be undone by toggling the option off. Instead every layer intercepts at read/compute
+/// time and simply *returns* 0 while the option is on, so turning it off restores normal weights
+/// immediately:
+///   - DR.Items.get_ItemWeight            (item definition weight reads)
+///   - IntegratedItem.get_ItemWeight      (inventory entry weight reads)
+///   - DataManager.CalcModifiedWeight     (per-catch weight used when adding to the dive bag)
+///   - LootBox weight / overweight state  (the actual dive-bag capacity)
+///   - LootsInfoPanel display
+/// </summary>
+[HarmonyPatch(typeof(Items), "get_ItemWeight")]
+static class DiveBuffsWeightlessItemsDefPatch
 {
-    static bool Prefix(Items itemBase)
+    static void Postfix(ref float __result)
     {
         try
         {
             if (SuperDaveCore.Enabled.Value && DiveBuffs.WeightlessItems.Value)
-                itemBase.ItemWeight = 0;
+                __result = 0f;
+        }
+        catch { }
+    }
+}
+
+[HarmonyPatch(typeof(IntegratedItem), "get_ItemWeight")]
+static class DiveBuffsWeightlessItemWeightPatch
+{
+    static void Postfix(ref float __result)
+    {
+        try
+        {
+            if (SuperDaveCore.Enabled.Value && DiveBuffs.WeightlessItems.Value)
+                __result = 0f;
+        }
+        catch { }
+    }
+}
+
+[HarmonyPatch(typeof(DataManager), "CalcModifiedWeight")]
+static class DiveBuffsWeightlessCalcPatch
+{
+    static void Postfix(ref float __result)
+    {
+        try
+        {
+            if (SuperDaveCore.Enabled.Value && DiveBuffs.WeightlessItems.Value)
+                __result = 0f;
+        }
+        catch { }
+    }
+}
+
+[HarmonyPatch(typeof(LootBox), "RefreshWeight")]
+static class DiveBuffsWeightlessLootRefreshPatch
+{
+    static void Postfix(LootBox __instance)
+    {
+        try
+        {
+            if (SuperDaveCore.Enabled.Value && DiveBuffs.WeightlessItems.Value && __instance != null)
+                Helpers.Il2CppReflection.SetFieldValue(__instance, "_weight_k__BackingField", 0f);
+        }
+        catch { }
+    }
+}
+
+[HarmonyPatch(typeof(LootBox), "get_isOverweightState")]
+static class DiveBuffsWeightlessOverweightPatch
+{
+    static void Postfix(ref bool __result)
+    {
+        try
+        {
+            if (SuperDaveCore.Enabled.Value && DiveBuffs.WeightlessItems.Value)
+                __result = false;
+        }
+        catch { }
+    }
+}
+
+[HarmonyPatch(typeof(LootBox), "CheckOverloadedState")]
+static class DiveBuffsWeightlessCheckPatch
+{
+    static bool Prefix(ref bool __result)
+    {
+        try
+        {
+            if (SuperDaveCore.Enabled.Value && DiveBuffs.WeightlessItems.Value)
+            {
+                __result = false;
+                return false;
+            }
         }
         catch { }
         return true;
+    }
+}
+
+[HarmonyPatch(typeof(LootsInfoPanel), "UpdateWeight")]
+static class DiveBuffsWeightlessUIPatch
+{
+    static void Prefix(ref float now, ref float max)
+    {
+        try
+        {
+            if (SuperDaveCore.Enabled.Value && DiveBuffs.WeightlessItems.Value)
+            {
+                now = 0f;
+                max = 999999f;
+            }
+        }
+        catch { }
     }
 }
 

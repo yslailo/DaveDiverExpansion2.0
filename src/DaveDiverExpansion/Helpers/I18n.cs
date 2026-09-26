@@ -34,6 +34,28 @@ public static class I18n
         ["Sushi"] = "寿司店",
         ["Harpoon"] = "鱼叉",
         ["Hotkeys"] = "快捷键",
+
+        // F1 display groups (merged sections)
+        ["Farming"] = "农场",
+        ["Map"] = "地图",
+        ["Automation"] = "自动化",
+        ["System"] = "系统",
+        ["AuraHud"] = "状态HUD",
+
+        // Status HUD
+        ["HUD - Enabled"] = "显示状态HUD",
+        ["HUD - Corner"] = "HUD 位置",
+        ["HUD - Show Aura"] = "显示光环状态",
+        ["HUD - Show Common Buffs"] = "显示常用状态",
+        ["Aura"] = "光环",
+        ["ON"] = "开",
+        ["OFF"] = "关",
+        ["Sleep"] = "睡眠",
+        ["Kill"] = "击杀",
+        ["Show the on-screen status HUD (aura state + common toggles)."] = "显示屏幕上的状态 HUD（光环状态 + 常用开关）。",
+        ["Screen corner for the status HUD."] = "状态 HUD 显示在屏幕的哪个角。",
+        ["Show the toxic aura state and mode in the HUD."] = "在 HUD 中显示剧毒光环的开关与模式。",
+        ["Show infinite oxygen / invincible / infinite bullets in the HUD."] = "在 HUD 中显示无限氧气 / 无敌 / 无限子弹。",
         // SuperDave feature labels
         ["Modifier"] = "修饰键",
         ["Toggle Toxic Aura"] = "切换剧毒光环",

@@ -32,4 +32,13 @@ public static class Il2CppReflection
             (typeof(T).IsEnum ? Enum.GetUnderlyingType(typeof(T)) : typeof(T))
         );
     }
+
+    /// <summary>
+    /// Write a field through native Il2Cpp reflection. Use when the interop does not expose a
+    /// settable property (e.g. private native setters such as LootBox.weight).
+    /// </summary>
+    public static void SetFieldValue(Il2CppSystem.Object obj, string name, float value)
+    {
+        GetField(obj, name)?.SetValue(obj, value);
+    }
 }

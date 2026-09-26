@@ -198,9 +198,19 @@ public static class AutoPickup
                 if (isOxygen && Vector3.Distance(playerPos, chest.transform.position) > OxygenChestRadius)
                     continue;
 
-                chest.SuccessInteract(player);
-                _pendingDestroy.Add(chest.gameObject);
-                if (AutoPickupDebugMode.Value) Plugin.Log.LogInfo($"[AutoPickup] chest {chestName}");
+                try
+                {
+                    chest.SuccessInteract(player);
+                    _pendingDestroy.Add(chest.gameObject);
+                    if (AutoPickupDebugMode.Value) Plugin.Log.LogInfo($"[AutoPickup] chest {chestName}");
+                }
+                catch (System.Exception e)
+                {
+                    // Some chests (e.g. DLC/Godzilla figure spawners) throw a NullReferenceException
+                    // in the game's InstanceItemSpawnHandler. Skip them instead of spamming every frame.
+                    Plugin.Log.LogWarning($"[AutoPickup] chest '{chestName}' interact failed: {e.Message}");
+                    _pendingDestroy.Add(chest.gameObject);
+                }
             }
         }
 
@@ -229,6 +239,7 @@ public static class AutoPickupPatch
 {
     private static void Postfix(PlayerCharacter __instance)
     {
-        AutoPickup.TryPickupNearby(__instance);
+        try { AutoPickup.TryPickupNearby(__instance); }
+        catch (System.Exception e) { Plugin.Log.LogError("AutoPickup: " + e.Message); }
     }
 }

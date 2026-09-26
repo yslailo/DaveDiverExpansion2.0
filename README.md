@@ -36,8 +36,13 @@ DaveDiverExpansion 2.0 keeps the original **DaveDiverExpansion** framework and i
 - **Quick Scene Switch** — press **F2** to open the scene-switch menu from anywhere
 - **In-Game Config Panel** — press **F1**
   - Auto-discovers every config entry, renders toggles/sliders/dropdowns/text inputs
+  - Grouped into 6 functional areas (see *Panel layout* below); hotkeys are listed next to the feature they drive
   - In-game key rebinding (click a hotkey row and press a key)
   - Hover a row to read its full description; scroll support; "Reset All Settings" button
+- **Status HUD** — small always-on overlay (bottom-left by default)
+  - Shows the **Toxic Aura** state and mode, plus Infinite Oxygen / Invincible / Infinite Bullets
+  - Flashes the aura line whenever the aura is toggled by hotkey (no need to open F1)
+  - Configurable corner (4 corners) and per-line toggles, or turn it off entirely
 
 ### SuperDave (ported)
 
@@ -62,6 +67,20 @@ DaveDiverExpansion 2.0 keeps the original **DaveDiverExpansion** framework and i
 
 Press **F1** in-game to open the settings panel. All settings can be changed live and are saved
 automatically. Alternatively edit `BepInEx/config/com.davediver.expansion2.0.cfg`.
+
+### Panel layout
+
+The panel groups all settings into 6 areas. The underlying config sections are unchanged, so
+existing `.cfg` files keep working:
+
+| Group | Contents |
+|-------|----------|
+| **Diving** | Diving buffs, Toxic Aura, harpoon head, iDiver upgrades, boat speed, status HUD, and the aura / weapon hotkeys |
+| **Farming** | Farm and fish-farm walk multipliers |
+| **Sushi** | Sushi-bar speed, patience, wasabi, money and cooking multipliers |
+| **Map** | Dive map / minimap and all marker toggles |
+| **Automation** | Auto pickup, auto seahorse race, betting expansion, quick scene switch |
+| **System** | Panel hotkey & language, SuperDave master switch, global modifier key, debug options |
 
 ### Default hotkeys
 
