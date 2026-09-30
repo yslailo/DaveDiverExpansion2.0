@@ -53,7 +53,7 @@ DaveDiverExpansion 2.0 keeps the original **DaveDiverExpansion** framework and i
 - **Sushi bar** — infinite customer patience, infinite wasabi, money boost, faster staff cooking
 - **Default Harpoon Head** — pick a harpoon head type + level to auto-equip when diving
 - **Weapon hotkeys** — full heal, give Tranq/Net/Snipe gun, weapon level up/down
-- **Large Pickups** — pick up large fish without drones
+- **Auto Call Drone** — automatically call the salvage drone for a sleeping large fish when Dave is close
 
 ## Installation (Players)
 

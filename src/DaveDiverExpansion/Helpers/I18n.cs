@@ -42,6 +42,30 @@ public static class I18n
         ["System"] = "系统",
         ["AuraHud"] = "状态HUD",
 
+        // F1 feature tree nodes (second level; hotkeys live under their feature)
+        ["Survival"] = "生存",
+        ["Speed"] = "速度",
+        ["Ammo"] = "弹药",
+        ["Drones & Traps"] = "无人机与渔笼",
+        ["Toxic Aura"] = "剧毒光环",
+        ["Auto Call Drone"] = "自动呼叫无人机",
+        ["Weapon Control"] = "武器控制",
+        ["iDiver Upgrades"] = "iDiver 升级",
+        ["Status HUD"] = "状态 HUD",
+        ["Master Switch"] = "总开关",
+        ["Settings Panel"] = "设置面板",
+        ["Hotkey Modifier"] = "热键修饰键",
+        ["Auto Pickup"] = "自动拾取",
+        ["Seahorse Race"] = "海马赛",
+        ["Casino Betting"] = "娱乐场下注",
+        ["Quick Scene Switch"] = "快速切换场景",
+        ["Dive Map"] = "潜水地图",
+        ["Mini Map"] = "小地图",
+        ["Map Display"] = "地图显示",
+        ["Markers"] = "标记",
+        ["Fish Farm"] = "鱼场",
+        ["Sushi Bar"] = "寿司吧",
+
         // Status HUD
         ["HUD - Enabled"] = "显示状态HUD",
         ["HUD - Corner"] = "HUD 位置",
@@ -81,7 +105,15 @@ public static class I18n
         ["Diving - Toxic Aura: Sleep Effect"] = "剧毒光环：睡眠效果",
         ["Diving - Toxic Aura: Radius"] = "剧毒光环：半径",
         ["Diving - Toxic Aura: Update Frequency"] = "剧毒光环：更新频率",
-        ["Diving - Enable Large Pickups"] = "启用大型鱼拾取",
+        ["Diving - Auto Call Drone"] = "潜水 - 自动呼叫无人机",
+        ["Automatically call the salvage drone to lift a downed large fish (sleeping or dead) when Dave is close (no need to hold the interact key)."] =
+            "大鱼被睡眠或击杀后，Dave 靠近即自动呼叫打捞无人机抓取，无需长按交互键。",
+        ["Diving - Auto Call Drone: Radius"] = "潜水 - 自动呼叫无人机：半径",
+        ["Radius (meters) around Dave in which a downed large fish triggers an automatic drone call (float, default 6f)."] =
+            "Dave 周围多少米内的睡眠/死亡大鱼会触发自动呼叫无人机（浮点数，默认 6）。",
+        ["Diving - Auto Call Drone: Cooldown"] = "潜水 - 自动呼叫无人机：冷却",
+        ["Minimum seconds between drone calls on the same fish (float, default 3f)."] =
+            "对同一条鱼两次呼叫无人机之间的最小间隔秒数（浮点数，默认 3）。",
         // Boat / Farm / FishFarm
         ["Boat - Walk Speed Boost"] = "船上行走速度加成",
         ["Farm - Walk Multiplier"] = "农场行走倍率",
@@ -267,6 +299,10 @@ public static class I18n
         // Reset button
         ["Reset All Settings"] = "重置所有设置",
         ["Confirm Reset?"] = "确认重置？",
+
+        // Tree toolbar
+        ["Expand All"] = "全部展开",
+        ["Collapse All"] = "全部折叠",
 
         // KeyCode binding
         ["Press a key..."] = "请按键...",

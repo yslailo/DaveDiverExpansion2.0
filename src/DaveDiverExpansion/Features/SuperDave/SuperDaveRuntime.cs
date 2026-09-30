@@ -17,6 +17,7 @@ public static class SuperDaveRuntime
         if (!SuperDaveCore.Enabled.Value) return;
 
         HarpoonHead.Tick(player);
+        AutoCallDrone.Tick(player);
 
         _generalTimer += Time.deltaTime;
         if (_generalTimer >= 1f)
@@ -24,7 +25,10 @@ public static class SuperDaveRuntime
             _generalTimer = 0f;
             try
             {
-                if (DroneTrap.InfiniteDrones.Value)
+                // Only top up when below the cap.  Writing 999 unconditionally fought
+                // iDiverExtension.ApplyDroneCount (which adds the iDiver drone-upgrade bonus on
+                // top, e.g. 999 -> 1001), causing "DroneCount: overwrite detected" every frame.
+                if (DroneTrap.InfiniteDrones.Value && player.AvailableLiftDroneCount < 999)
                     player.AvailableLiftDroneCount = 999;
                 if (DiveBuffs.InfiniteBullets.Value)
                     player.CurrentInstanceItemInventory?.gunHandler.ForceSetBulletCount(999);

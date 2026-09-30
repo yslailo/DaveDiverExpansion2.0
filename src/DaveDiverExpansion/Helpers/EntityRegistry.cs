@@ -10,7 +10,7 @@ namespace DaveDiverExpansion.Helpers;
 /// </summary>
 public static class EntityRegistry
 {
-    public static readonly HashSet<FishInteractionBody> AllFish = new();
+    public static readonly HashSet<FishInteractionBody> AllFish = new(PointerComparer.Instance);
     public static readonly HashSet<PickupInstanceItem> AllItems = new();
     public static readonly HashSet<InstanceItemChest> AllChests = new();
     public static readonly HashSet<BreakableLootObject> AllBreakableOres = new();
@@ -47,6 +47,30 @@ public static class EntityRegistry
             int chestRemoved = chestBefore - AllChests.Count;
             if (fishRemoved > 0 || chestRemoved > 0)
                 Plugin.Log.LogInfo($"[EntityRegistry] Purge: fish={fishRemoved} chest={chestRemoved} removed (remaining: fish={AllFish.Count} item={AllItems.Count} chest={AllChests.Count} ores={AllBreakableOres.Count} mining={AllMiningNodes.Count})");
+        }
+    }
+
+    /// <summary>
+    /// The IL2CPP interop wrapper does not override Equals/GetHashCode, so the default HashSet
+    /// comparer treats two managed wrappers of the *same* native object as distinct and the same
+    /// fish ends up registered twice (it is re-wrapped on every Awake/OnEnable).  Compare by the
+    /// native pointer instead so each fish appears exactly once.
+    /// </summary>
+    private sealed class PointerComparer : IEqualityComparer<FishInteractionBody>
+    {
+        public static readonly PointerComparer Instance = new();
+
+        public bool Equals(FishInteractionBody a, FishInteractionBody b)
+        {
+            if (ReferenceEquals(a, b)) return true;
+            if (a is null || b is null) return false;
+            try { return a.Pointer == b.Pointer; } catch { return false; }
+        }
+
+        public int GetHashCode(FishInteractionBody o)
+        {
+            if (o is null) return 0;
+            try { return o.Pointer.GetHashCode(); } catch { return 0; }
         }
     }
 }

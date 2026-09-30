@@ -37,6 +37,7 @@ public class Plugin : BasePlugin
         DiveBuffs.Init(Config);
         DroneTrap.Init(Config);
         ToxicAura.Init(Config);
+        AutoCallDrone.Init(Config);
         SushiBarTweaks.Init(Config);
         HarpoonHead.Init(Config);
         WeaponControl.Init(Config);

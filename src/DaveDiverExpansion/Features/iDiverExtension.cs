@@ -1059,6 +1059,17 @@ public static class iDiverExtension
         /// </summary>
         private static void ApplyDroneCount(PlayerCharacter player)
         {
+            // When "Infinite Drones" is on, SuperDaveRuntime forces the count, so any bonus
+            // tracking here would just fight it (constant "overwrite detected" spam and a
+            // count that oscillates between 999 and 999+bonus).  Let SuperDave own the value.
+            if (DaveDiverExpansion.Features.SuperDave.DroneTrap.InfiniteDrones.Value)
+            {
+                _droneBaseInitialized = false;
+                _expectedDroneCount = -1;
+                _lastDroneBonus = 0;
+                return;
+            }
+
             int wantBonus = _enabled?.Value == true ? GetLevel(Upgrades[6]) : 0;
             int current = player.AvailableLiftDroneCount;
 

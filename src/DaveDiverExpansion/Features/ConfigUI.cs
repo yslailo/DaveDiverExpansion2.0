@@ -37,6 +37,13 @@ public static class ConfigUI
     // Track UI controls for cleanup on rebuild
     private static readonly List<GameObject> _sectionObjects = new();
 
+    // Tree view: collapsed node keys ("G:<group>" / "G:<group>/<section>"), all keys seen
+    // during the last rebuild (for "Collapse All"), and a deferred-rebuild flag (never
+    // destroy the clicked node inside its own onClick).
+    private static readonly HashSet<string> _collapsed = new();
+    private static readonly List<string> _allNodeKeys = new();
+    private static bool _needsRebuild;
+
     // Hover description: row RectTransform → raw description key (translated on display)
     private static readonly List<(RectTransform rt, string desc)> _rowDescs = new();
     private static RectTransform _viewportRT;
@@ -107,6 +114,11 @@ public static class ConfigUI
                 RebuildEntries();
             }
 
+            if (_needsRebuild)
+            {
+                _needsRebuild = false;
+                RebuildEntries();
+            }
             UpdateHoverDesc();
             HandleScrollWheel();
             TickResetConfirm();
@@ -326,16 +338,16 @@ public static class ConfigUI
         _overlayGO.SetActive(false);
     }
 
-    // ---- Display grouping: merge the raw config sections into 6 functional areas ----
+    // ---- Display grouping: merge raw config sections into a feature tree ----
     // Raw config sections stay unchanged (so existing .cfg files keep working); only the
-    // panel rendering is regrouped.
+    // panel rendering is regrouped.  Hotkeys live with the feature they drive.
 
     private static readonly string[] GroupOrder =
     {
         "Diving", "Farming", "Sushi", "Map", "Automation", "System"
     };
 
-    // config section -> display group
+    // Fallback: config section -> display group (used only for entries no FeatureDef matches)
     private static readonly Dictionary<string, string> SectionGroup = new()
     {
         ["Diving"] = "Diving",
@@ -362,38 +374,84 @@ public static class ConfigUI
         ["Debug"] = "System",
     };
 
-    // Individual entries that belong to a different group than their section.
-    // (Splits the Hotkeys section so each hotkey sits next to the feature it drives.)
-    private static readonly Dictionary<string, string> EntryGroupOverride = new()
+    // Config entries that no longer exist (removed features) but may still linger in the .cfg
+    // file on disk.  BepInEx keeps unbound lines, so hide them explicitly.
+    private static readonly HashSet<string> IgnoredEntries = new()
     {
-        ["Hotkeys/Toggle Toxic Aura"] = "Diving",
-        ["Hotkeys/Change Toxic Aura Mode"] = "Diving",
-        ["Hotkeys/Heal"] = "Diving",
-        ["Hotkeys/Net Gun"] = "Diving",
-        ["Hotkeys/Tranq Gun"] = "Diving",
-        ["Hotkeys/Sniper"] = "Diving",
-        ["Hotkeys/Weapon Up"] = "Diving",
-        ["Hotkeys/Weapon Down"] = "Diving",
+        "Diving/Enable Large Pickups",   // removed, replaced by Auto Call Drone
     };
 
-    // Sub-section (source config section) order inside each group
-    private static readonly Dictionary<string, string[]> GroupSubOrder = new()
+    private static bool In(string key, params string[] keys) => Array.IndexOf(keys, key) >= 0;
+
+    /// <summary>
+    /// A feature node in the tree: which group it belongs to, its label, and how to recognise
+    /// its config entries.  Matched in declaration order; first match wins.
+    /// </summary>
+    private sealed class FeatureDef
     {
-        ["Diving"] = new[] { "Diving", "Harpoon", "iDiverExtension", "AuraHud", "Boat", "Hotkeys" },
-        ["Farming"] = new[] { "Farm", "FishFarm" },
-        ["Sushi"] = new[] { "Sushi" },
-        ["Map"] = new[] { "DiveMap" },
-        ["Automation"] = new[] { "AutoPickup", "AutoSeahorseRace", "BettingExpansion", "QuickSceneSwitch" },
-        ["System"] = new[] { "ConfigUI", "SuperDave", "Hotkeys", "Debug" },
+        public readonly string Group;
+        public readonly string Name;
+        public readonly Func<string, string, bool> Match;
+        public FeatureDef(string group, string name, Func<string, string, bool> match)
+        {
+            Group = group; Name = name; Match = match;
+        }
+    }
+
+    private static readonly FeatureDef[] FeatureDefs =
+    {
+        // ---- System ----
+        new("System", "Master Switch", (s, k) => s == "SuperDave"),
+        new("System", "Settings Panel", (s, k) => s == "ConfigUI"),
+        new("System", "Hotkey Modifier", (s, k) => s == "Hotkeys" && k == "Modifier"),
+        new("System", "Debug", (s, k) => s == "Debug"),
+
+        // ---- Diving ----
+        new("Diving", "Survival", (s, k) => s == "Diving" && In(k,
+            "Diving - Infinite Oxygen", "Diving - Invincible",
+            "Diving - Weightless Items", "Diving - Disable Item Info Popups")),
+        new("Diving", "Speed", (s, k) => (s == "Diving" && k == "Diving - Speed Boost") || s == "Boat"),
+        new("Diving", "Ammo", (s, k) => s == "Diving" && k == "Diving - Infinite Bullets"),
+        new("Diving", "Drones & Traps", (s, k) => s == "Diving" && In(k,
+            "Diving - Infinite Drones", "Diving - Infinite Crab Traps")),
+        new("Diving", "Toxic Aura", (s, k) =>
+            (s == "Diving" && k.StartsWith("Diving - Toxic Aura")) ||
+            (s == "Hotkeys" && In(k, "Toggle Toxic Aura", "Change Toxic Aura Mode"))),
+        new("Diving", "Auto Call Drone", (s, k) => s == "Diving" && k.StartsWith("Diving - Auto Call Drone")),
+        new("Diving", "Weapon Control", (s, k) => s == "Hotkeys" && In(k,
+            "Heal", "Net Gun", "Tranq Gun", "Sniper", "Weapon Up", "Weapon Down")),
+        new("Diving", "Harpoon", (s, k) => s == "Harpoon"),
+        new("Diving", "iDiver Upgrades", (s, k) => s == "iDiverExtension"),
+        new("Diving", "Status HUD", (s, k) => s == "AuraHud"),
+
+        // ---- Automation ----
+        new("Automation", "Auto Pickup", (s, k) => s == "AutoPickup"),
+        new("Automation", "Seahorse Race", (s, k) => s == "AutoSeahorseRace"),
+        new("Automation", "Casino Betting", (s, k) => s == "BettingExpansion"),
+        new("Automation", "Quick Scene Switch", (s, k) => s == "QuickSceneSwitch"),
+
+        // ---- Map ----
+        new("Map", "Dive Map", (s, k) => s == "DiveMap" && In(k, "Enabled", "ToggleKey")),
+        new("Map", "Mini Map", (s, k) => s == "DiveMap" && k.StartsWith("MiniMap")),
+        new("Map", "Map Display", (s, k) => s == "DiveMap" && In(k, "MapSize", "MapOpacity", "MarkerScale")),
+        new("Map", "Markers", (s, k) => s == "DiveMap" && k.StartsWith("Show")),
+
+        // ---- Farming ----
+        new("Farming", "Farm", (s, k) => s == "Farm"),
+        new("Farming", "Fish Farm", (s, k) => s == "FishFarm"),
+
+        // ---- Sushi ----
+        new("Sushi", "Sushi Bar", (s, k) => s == "Sushi"),
     };
 
-    // Per-section entry ordering (key name -> display position)
+    // Per-section entry ordering (key name -> display position); applied inside a feature
+    // when all of its entries come from the same config section.
     private static readonly Dictionary<string, string[]> EntryOrder = new()
     {
         ["DiveMap"] = new[] {
             "Enabled", "ToggleKey",
             "MiniMapEnabled", "MiniMapPosition", "MiniMapOffsetX", "MiniMapOffsetY",
-            "MapSize", "MiniMapZoom", "MapOpacity",
+            "MiniMapZoom", "MapSize", "MapOpacity", "MarkerScale",
             "ShowEscapePods", "ShowOres", "ShowFish", "ShowAggressiveFish", "ShowCatchableFish", "ShowDistantFish", "ShowItems", "ShowChests", "ShowCrabTraps"
         },
         ["Debug"] = new[] { "DebugLog", "DiveMapDebugLog", "AutoContinue" }
@@ -403,6 +461,7 @@ public static class ConfigUI
     {
         if (_descText != null) _descText.text = "";
         _rowDescs.Clear();
+        _allNodeKeys.Clear();
 
         // Clear old section objects
         foreach (var go in _sectionObjects)
@@ -420,19 +479,40 @@ public static class ConfigUI
             return;
         }
 
-        // Bucket every entry into: display group -> source section -> entries
+        // Bucket every entry into: group -> feature -> entries (insertion order preserved)
         var groups = new Dictionary<string, Dictionary<string, List<ConfigEntryBase>>>();
+        var featureOrderByGroup = new Dictionary<string, List<string>>();
         foreach (var kv in _configFile)
         {
             string section = kv.Key.Section;
             string key = kv.Key.Key;
-            string group = ResolveGroup(section, key);
+            if (IgnoredEntries.Contains(section + "/" + key)) continue;
 
-            if (!groups.TryGetValue(group, out var subs))
-                groups[group] = subs = new Dictionary<string, List<ConfigEntryBase>>();
-            if (!subs.TryGetValue(section, out var list))
-                subs[section] = list = new List<ConfigEntryBase>();
+            ResolveFeature(section, key, out string group, out string feature);
+
+            if (!groups.TryGetValue(group, out var feats))
+            {
+                groups[group] = feats = new Dictionary<string, List<ConfigEntryBase>>();
+                featureOrderByGroup[group] = new List<string>();
+            }
+            if (!feats.TryGetValue(feature, out var list))
+            {
+                feats[feature] = list = new List<ConfigEntryBase>();
+                featureOrderByGroup[group].Add(feature);
+            }
             list.Add(kv.Value);
+        }
+
+        // Reorder each group's features to follow the FeatureDefs declaration order
+        foreach (var group in new List<string>(featureOrderByGroup.Keys))
+        {
+            var declared = new List<string>();
+            foreach (var f in FeatureDefs)
+                if (f.Group == group && groups[group].ContainsKey(f.Name) && !declared.Contains(f.Name))
+                    declared.Add(f.Name);
+            foreach (var name in featureOrderByGroup[group])
+                if (!declared.Contains(name)) declared.Add(name); // fallback / unknown
+            featureOrderByGroup[group] = declared;
         }
 
         // Ordered list of groups (unknown groups appended at the end)
@@ -442,38 +522,40 @@ public static class ConfigUI
         foreach (var g in groups.Keys)
             if (!orderedGroups.Contains(g)) orderedGroups.Add(g);
 
+        // Tree toolbar (Expand / Collapse all)
+        CreateTreeToolbar(contentRT.gameObject);
+
+        // ---- Tree: Group (depth 0) -> Feature (depth 1) -> Entries (depth 2) ----
         foreach (var group in orderedGroups)
         {
-            var subs = groups[group];
+            string groupKey = "G:" + group;
 
-            // Group header
-            AddHeader(contentRT.gameObject, "Group_" + group, I18n.T(group), 19, new Color(0.55f, 0.78f, 1f));
+            AddTreeNode(contentRT.gameObject, groupKey, I18n.T(group), 0, 18,
+                new Color(0.55f, 0.78f, 1f), new Color(0.16f, 0.19f, 0.27f, 0.95f));
+            if (_collapsed.Contains(groupKey)) continue;
 
-            // Sub-section order inside this group
-            var subOrder = new List<string>();
-            if (GroupSubOrder.TryGetValue(group, out var so))
-                foreach (var s in so)
-                    if (subs.ContainsKey(s)) subOrder.Add(s);
-            foreach (var s in subs.Keys)
-                if (!subOrder.Contains(s)) subOrder.Add(s);
-
-            bool multiSub = subOrder.Count > 1;
-            foreach (var section in subOrder)
+            var feats = groups[group];
+            foreach (var feature in featureOrderByGroup[group])
             {
-                var entries = subs[section];
+                var entries = feats[feature];
+                string featKey = groupKey + "/" + feature;
 
-                // Sub-header, unless it would just repeat the group name
-                if (multiSub && I18n.T(section) != I18n.T(group))
-                    AddHeader(contentRT.gameObject, "Sub_" + section, I18n.T(section), 15, new Color(0.65f, 0.72f, 0.85f));
+                AddTreeNode(contentRT.gameObject, featKey, I18n.T(feature), 1, 15,
+                    new Color(0.68f, 0.74f, 0.86f), new Color(0.13f, 0.14f, 0.19f, 0.9f));
+                if (_collapsed.Contains(featKey)) continue;
 
-                if (EntryOrder.TryGetValue(section, out var keyOrder))
+                // Apply the section order only when the feature is single-section
+                string onlySection = entries[0].Definition.Section;
+                bool singleSection = true;
+                foreach (var e in entries)
+                {
+                    if (e.Definition.Section != onlySection) { singleSection = false; break; }
+                }
+                if (singleSection && EntryOrder.TryGetValue(onlySection, out var keyOrder))
                     SortEntries(entries, keyOrder);
 
                 foreach (var entry in entries)
-                {
-                    var rowGO = CreateEntryRow(contentRT.gameObject, entry);
-                    _sectionObjects.Add(rowGO);
-                }
+                    _sectionObjects.Add(CreateEntryRow(contentRT.gameObject, entry, 2));
             }
         }
 
@@ -481,27 +563,137 @@ public static class ConfigUI
         CreateResetButton(contentRT.gameObject);
     }
 
-    private static string ResolveGroup(string section, string key)
+    private static string ResolveGroup(string section)
     {
-        if (EntryGroupOverride.TryGetValue(section + "/" + key, out var g)) return g;
-        if (SectionGroup.TryGetValue(section, out g)) return g;
+        if (SectionGroup.TryGetValue(section, out var g)) return g;
         return "System";
     }
 
-    private static void AddHeader(GameObject parent, string name, string text, int fontSize, Color color)
+    // Returns the (group, feature) that owns a config entry.  Falls back to the raw section
+    // name (grouped via SectionGroup) for entries no FeatureDef matches.
+    private static void ResolveFeature(string section, string key, out string group, out string feature)
     {
-        var go = CreateUIObject(name, parent);
-        _sectionObjects.Add(go);
-        var le = go.AddComponent<LayoutElement>();
-        le.preferredHeight = fontSize + 12;
+        foreach (var f in FeatureDefs)
+        {
+            if (f.Match(section, key)) { group = f.Group; feature = f.Name; return; }
+        }
+        group = ResolveGroup(section);
+        feature = section;
+    }
+
+    /// <summary>Expand / Collapse-all toolbar shown above the tree.</summary>
+    private static void CreateTreeToolbar(GameObject parent)
+    {
+        var rowGO = CreateUIObject("TreeToolbar", parent);
+        _sectionObjects.Add(rowGO);
+        var hl = rowGO.AddComponent<HorizontalLayoutGroup>();
+        hl.childForceExpandWidth = false;
+        hl.childForceExpandHeight = false;
+        hl.childAlignment = TextAnchor.MiddleRight;
+        hl.spacing = 6;
+        var le = rowGO.AddComponent<LayoutElement>();
+        le.preferredHeight = 26;
         le.flexibleHeight = 0;
-        var t = go.AddComponent<Text>();
+
+        AddToolbarButton(rowGO, I18n.T("Expand All"), (UnityAction)delegate
+        {
+            _collapsed.Clear();
+            _needsRebuild = true;
+        });
+        AddToolbarButton(rowGO, I18n.T("Collapse All"), (UnityAction)delegate
+        {
+            foreach (var k in _allNodeKeys) _collapsed.Add(k);
+            _needsRebuild = true;
+        });
+    }
+
+    private static void AddToolbarButton(GameObject parent, string text, UnityAction onClick)
+    {
+        var btnGO = CreateUIObject("ToolbarBtn", parent);
+        var le = btnGO.AddComponent<LayoutElement>();
+        le.preferredWidth = 100;
+        le.preferredHeight = 24;
+        le.flexibleWidth = 0;
+        var img = btnGO.AddComponent<Image>();
+        img.color = new Color(0.25f, 0.28f, 0.36f, 0.95f);
+        var btn = btnGO.AddComponent<Button>();
+        btn.targetGraphic = img;
+        btn.onClick.AddListener(onClick);
+
+        var txtGO = CreateUIObject("Text", btnGO);
+        var rt = txtGO.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.sizeDelta = Vector2.zero;
+        var t = txtGO.AddComponent<Text>();
         t.text = text;
         t.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-        t.fontSize = fontSize;
-        t.fontStyle = FontStyle.Bold;
-        t.color = color;
-        t.alignment = TextAnchor.MiddleLeft;
+        t.fontSize = 13;
+        t.color = new Color(0.9f, 0.9f, 0.9f);
+        t.alignment = TextAnchor.MiddleCenter;
+        t.raycastTarget = false;
+    }
+
+    /// <summary>
+    /// A collapsible tree node header.  Clicking anywhere on the row toggles collapse;
+    /// the actual rebuild is deferred to the next Update (never destroy the clicked
+    /// button inside its own onClick).
+    /// </summary>
+    private static void AddTreeNode(GameObject parent, string nodeKey, string text, int depth, int fontSize, Color textColor, Color bgColor)
+    {
+        _allNodeKeys.Add(nodeKey);
+
+        var rowGO = CreateUIObject("Node_" + nodeKey, parent);
+        _sectionObjects.Add(rowGO);
+        var rowLE = rowGO.AddComponent<LayoutElement>();
+        rowLE.preferredHeight = fontSize + 14;
+        rowLE.flexibleHeight = 0;
+
+        var bg = rowGO.AddComponent<Image>();
+        bg.color = bgColor;
+        var btn = rowGO.AddComponent<Button>();
+        btn.targetGraphic = bg;
+
+        var hl = rowGO.AddComponent<HorizontalLayoutGroup>();
+        hl.childForceExpandWidth = false;
+        hl.childForceExpandHeight = false;
+        hl.childAlignment = TextAnchor.MiddleLeft;
+        hl.spacing = 4;
+        hl.padding = new RectOffset(depth * 18, 4, 0, 0);
+
+        bool collapsed = _collapsed.Contains(nodeKey);
+
+        var arrowGO = CreateUIObject("Arrow", rowGO);
+        var arrowText = arrowGO.AddComponent<Text>();
+        arrowText.text = collapsed ? ">" : "v";
+        arrowText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        arrowText.fontSize = fontSize - 2;
+        arrowText.color = textColor;
+        arrowText.alignment = TextAnchor.MiddleCenter;
+        arrowText.raycastTarget = false;
+        var arrowLE = arrowGO.AddComponent<LayoutElement>();
+        arrowLE.preferredWidth = 16;
+        arrowLE.flexibleWidth = 0;
+
+        var labelGO = CreateUIObject("Label", rowGO);
+        var labelText = labelGO.AddComponent<Text>();
+        labelText.text = text;
+        labelText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        labelText.fontSize = fontSize;
+        labelText.fontStyle = FontStyle.Bold;
+        labelText.color = textColor;
+        labelText.alignment = TextAnchor.MiddleLeft;
+        labelText.raycastTarget = false;
+        var labelLE = labelGO.AddComponent<LayoutElement>();
+        labelLE.flexibleWidth = 1;
+
+        string key = nodeKey;
+        btn.onClick.AddListener((UnityAction)delegate
+        {
+            if (!_collapsed.Add(key))
+                _collapsed.Remove(key);
+            _needsRebuild = true;
+        });
     }
 
     private static void SortEntries(List<ConfigEntryBase> entries, string[] keyOrder)
@@ -602,7 +794,7 @@ public static class ConfigUI
         }
     }
 
-    private static GameObject CreateEntryRow(GameObject parent, ConfigEntryBase entry)
+    private static GameObject CreateEntryRow(GameObject parent, ConfigEntryBase entry, int depth)
     {
         var rowGO = CreateUIObject("Row_" + entry.Definition.Key, parent);
         var rowLayout = rowGO.AddComponent<HorizontalLayoutGroup>();
@@ -613,6 +805,15 @@ public static class ConfigUI
         var rowLE = rowGO.AddComponent<LayoutElement>();
         rowLE.preferredHeight = 36;
         rowLE.flexibleHeight = 0;
+
+        // Tree indentation (aligns entries under their node header)
+        if (depth > 0)
+        {
+            var indentGO = CreateUIObject("Indent", rowGO);
+            var indentLE = indentGO.AddComponent<LayoutElement>();
+            indentLE.preferredWidth = depth * 18;
+            indentLE.flexibleWidth = 0;
+        }
 
         // Label
         var labelGO = CreateUIObject("Label", rowGO);

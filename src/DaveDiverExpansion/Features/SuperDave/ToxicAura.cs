@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using BepInEx.Configuration;
 using DR;
 using DaveDiverExpansion.Helpers;
@@ -13,20 +14,29 @@ namespace DaveDiverExpansion.Features.SuperDave;
 public static class ToxicAura
 {
     private const int SLEEP_BUFF_ID = 14080415;
-    private const float SLEEP_BUFF_VALUE = 9999999999f;
 
     public static ConfigEntry<bool> Enabled;
     public static ConfigEntry<bool> SleepEffect;
     public static ConfigEntry<float> Radius;
     public static ConfigEntry<float> UpdateFrequency;
-    public static ConfigEntry<bool> LargePickups;
 
     // Runtime toggles (initialized from config, flipped by hotkeys)
     public static bool ActiveByHotkey = true;
     public static bool SleepByHotkey = true;
 
     private static bool _initialized;
+
+    // Long sleep value applied to the SHARED sleep buff data (original SuperDave behaviour).
+    // This is what lets big fish fall asleep (they resist the default short sleep) and keeps
+    // them asleep.  Applied once per process.
+    // NOTE: this also lengthens every other sleep effect in the game (e.g. the tranquilizer
+    // gun) — that is the trade-off for the aura actually working.  (A per-fish clone of the
+    // data was attempted, but the interop AddBuff(BuffDebuffEffectData,...) overload throws.)
+    private const float LONG_SLEEP_VALUE = 9999999999f;
     private static bool _didSetSleepBuffValue;
+    // Safety net: never re-apply to the same fish more often than this.
+    private const float SleepReapplyCooldown = 8f;
+    private static readonly Dictionary<long, float> _lastSleep = new();
 
     public static void Init(ConfigFile config)
     {
@@ -42,9 +52,6 @@ public static class ToxicAura
         UpdateFrequency = config.Bind(
             "Diving", "Diving - Toxic Aura: Update Frequency", 0.5f,
             "Time (in seconds) between aura pulses (float, default 0.5f).");
-        LargePickups = config.Bind(
-            "Diving", "Diving - Enable Large Pickups", false,
-            "Set to true to let large fish (Calldrone) be picked up without drones.");
     }
 
     public static void EnsureInit()
@@ -80,16 +87,8 @@ public static class ToxicAura
             var character = SuperDaveCore.Character;
             if (character == null || !character.isActiveAndEnabled) return;
 
-            if (!_didSetSleepBuffValue)
-            {
-                var data = DataManager.Instance?.BuffEffectDataDic;
-                if (data != null && data.ContainsKey(SLEEP_BUFF_ID))
-                {
-                    data[SLEEP_BUFF_ID].buffvalue1 = SLEEP_BUFF_VALUE;
-                    data[SLEEP_BUFF_ID].buffvalue2 = SLEEP_BUFF_VALUE;
-                    _didSetSleepBuffValue = true;
-                }
-            }
+            if (SleepByHotkey && !_didSetSleepBuffValue)
+                EnsureLongSleepValue();
 
             var origin = character.transform.position;
             float radius = Radius.Value;
@@ -98,29 +97,29 @@ public static class ToxicAura
             {
                 if (fish == null || fish.gameObject == null) continue;
 
-                if (!AutoPickup.AutoPickupFish.Value
-                    && fish.InteractionType == FishInteractionBody.FishInteractionType.Calldrone
-                    && LargePickups.Value)
-                {
-                    fish.InteractionType = FishInteractionBody.FishInteractionType.Pickup;
-                }
+                // NOTE: the old "droneless large pickup" conversion (Calldrone -> Pickup) has
+                // been removed entirely.  Flipping a big fish to Pickup without a valid
+                // pickupCommand made the game dereference a null command in its per-frame input
+                // callback ("NullReferenceException while executing 'InputSystem.onAfterUpdate'
+                // callbacks") and froze the player.  Large fish keep their native Calldrone
+                // interaction; "Diving - Auto Call Drone" calls the salvage drone automatically.
 
                 if (Vector3.Distance(origin, fish.transform.position) > radius) continue;
 
                 if (SleepByHotkey)
                 {
-                    var buffHandler = fish.gameObject.GetComponent<BuffHandler>();
+                    var buffHandler = FindBuffHandler(fish.gameObject);
                     if (buffHandler == null) continue;
-                    bool isAsleep = false;
-                    try
+                    if (!IsBuffAsleep(buffHandler))
                     {
-                        var buffDict = Il2CppReflection.GetFieldValue(buffHandler, "CJCBPPIBGLB");
-                        if (buffDict != null && Il2CppReflection.GetFieldValue<int>((Il2CppSystem.Object)buffDict, "count") > 0)
-                            isAsleep = true;
+                        long key = fish.Pointer.ToInt64();
+                        if (!_lastSleep.TryGetValue(key, out float last)
+                                || Time.time - last >= SleepReapplyCooldown)
+                        {
+                            buffHandler.AddBuff(SLEEP_BUFF_ID);
+                            _lastSleep[key] = Time.time;
+                        }
                     }
-                    catch { }
-                    if (!isAsleep)
-                        buffHandler.AddBuff(SLEEP_BUFF_ID);
                 }
                 else
                 {
@@ -133,6 +132,106 @@ public static class ToxicAura
         catch (System.Exception e)
         {
             Plugin.Log.LogError("** ToxicAura.Tick ERROR - " + e);
+        }
+    }
+
+    /// <summary>True when the fish currently has the sleep buff (shared with AutoCallDrone).</summary>
+    public static bool IsFishAsleep(FishInteractionBody fish)
+    {
+        if (fish == null || fish.gameObject == null) return false;
+        try
+        {
+            var buffHandler = FindBuffHandler(fish.gameObject);
+            return buffHandler != null && IsBuffAsleep(buffHandler);
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Locate the BuffHandler.  Small fish keep it on the same GameObject as the
+    /// FishInteractionBody, but large fish frequently keep it on a child (body model) or
+    /// parent — a plain GetComponent then returns null and the fish never looked "asleep".
+    /// </summary>
+    public static BuffHandler FindBuffHandler(GameObject go)
+    {
+        if (go == null) return null;
+        var bh = go.GetComponent<BuffHandler>();
+        if (bh != null) return bh;
+        bh = go.GetComponentInChildren<BuffHandler>(true);
+        if (bh != null) return bh;
+        return go.GetComponentInParent<BuffHandler>();
+    }
+
+    private static bool IsBuffAsleep(BuffHandler buffHandler)
+    {
+        // 1) typed check
+        try
+        {
+            if (buffHandler.HasBuffType(BuffType.Sleep) || buffHandler.HasBuffType(BuffType.InstantSleep))
+                return true;
+        }
+        catch { }
+
+        // 2) direct scan of the real buff dictionary.  NOTE: the real field is `m_Buffs`; the
+        //    previous code read a non-existent obfuscated name ("CJCBPPIBGLB"), so this branch
+        //    always returned false and every large fish looked awake.
+        try
+        {
+            var buffs = buffHandler.m_Buffs;
+            if (buffs != null)
+            {
+                if (buffs.ContainsKey(SLEEP_BUFF_ID)) return true;
+                foreach (var kv in buffs)
+                {
+                    var buff = kv.Value;
+                    if (buff == null) continue;
+                    var t = buff.BuffType;
+                    if (t == BuffType.Sleep || t == BuffType.InstantSleep) return true;
+                    if (buff.BuffID == SLEEP_BUFF_ID || buff.m_BuffDataID == SLEEP_BUFF_ID) return true;
+                }
+            }
+        }
+        catch { }
+
+        return false;
+    }
+
+    /// <summary>Compact buff-state summary for the AutoCallDrone diag line.</summary>
+    public static string DescribeBuffState(FishInteractionBody fish)
+    {
+        if (fish == null || fish.gameObject == null) return "bh=nullfish";
+        try
+        {
+            var bh = FindBuffHandler(fish.gameObject);
+            if (bh == null) return "bh=none";
+            int n = 0;
+            bool hasSleep = false, hasInstant = false, hasId = false;
+            try { n = bh.m_Buffs?.Count ?? 0; } catch { }
+            try { hasSleep = bh.HasBuffType(BuffType.Sleep); } catch { }
+            try { hasInstant = bh.HasBuffType(BuffType.InstantSleep); } catch { }
+            try { hasId = bh.m_Buffs != null && bh.m_Buffs.ContainsKey(SLEEP_BUFF_ID); } catch { }
+            return $"bh=1 n={n} sleep={hasSleep} instant={hasInstant} id={hasId}";
+        }
+        catch { return "bh=err"; }
+    }
+
+    // Applies the long sleep value to the shared sleep buff data once (original behaviour).
+    private static void EnsureLongSleepValue()
+    {
+        try
+        {
+            var dic = DataManager.Instance?.BuffEffectDataDic;
+            if (dic != null && dic.ContainsKey(SLEEP_BUFF_ID))
+            {
+                dic[SLEEP_BUFF_ID].buffvalue1 = LONG_SLEEP_VALUE;
+                dic[SLEEP_BUFF_ID].buffvalue2 = LONG_SLEEP_VALUE;
+                _didSetSleepBuffValue = true;
+                Plugin.Log.LogInfo("[ToxicAura] applied shared long sleep value");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Plugin.Log.LogWarning("[ToxicAura] set long sleep value failed: " + e.Message);
         }
     }
 }

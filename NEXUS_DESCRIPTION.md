@@ -66,7 +66,7 @@ so you end up with `BepInEx\plugins\dave-diver-expansion2.0\dave-diver-expansion
 - **Sushi bar** — infinite customer patience, infinite wasabi, money boost, faster cooking
 - **Default Harpoon Head** — auto-equip a chosen harpoon type + level on every dive
 - **Weapon hotkeys** — full heal, give Tranq/Net/Snipe gun, weapon level up/down
-- **Large Pickups** — pick up big fish without needing a drone
+- **Auto Call Drone** — automatically call the salvage drone for a sleeping large fish when Dave is close
 
 **Default hotkeys** (hold the modifier key, default `LeftControl`):
 
