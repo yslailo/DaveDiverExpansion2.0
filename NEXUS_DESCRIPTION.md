@@ -26,7 +26,7 @@ All options are off/on individually — install it even if you only want the map
 2. Extract BepInEx into your game folder:
 `Steam\steamapps\common\Dave the Diver\`
 3. **Launch the game once** so BepInEx generates `BepInEx\interop`, then close it.
-4. Download `DaveDiverExpansion-2.0.2.zip` from this page and extract it.
+4. Download `DaveDiverExpansion-2.0.3.zip` from this page and extract it.
 5. Copy `dave-diver-expansion2.0` folder into:
 `Dave the Diver\BepInEx\plugins\`
 so you end up with `BepInEx\plugins\dave-diver-expansion2.0\dave-diver-expansion2.0.dll`
