@@ -326,7 +326,7 @@ public class DiveMapBehaviour : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.Escape) && _showBigMap)
             {
                 _showBigMap = false;
-                                Plugin.Log.LogInfo("DiveMap: big map closed via ESC");
+                                Plugin.Debug("DiveMap: big map closed via ESC");
             }
 
             // Check dive scene (use _instance to avoid auto-creation)
@@ -343,21 +343,19 @@ public class DiveMapBehaviour : MonoBehaviour
             }
             catch { }
 
-            // Disable in merfolk village (has its own M-key map)
-            if (inGame)
-            {
-                try
-                {
-                    var sceneName = SceneManager.GetActiveScene().name;
-                    if (sceneName.Contains("MermanVillage") || sceneName.StartsWith("MV_"))
-                        inGame = false;
-                }
-                catch { }
-            }
+            // Disable in merfolk village (has its own M-key map).
+            // BUGFIX: the village is loaded ADDITIVELY via SceneLoader.coLoadAdditiveScene
+            // (see InGameManager's Start coroutine, which compares Scene.get_name against
+            // "MermanVillage"). An additively loaded scene is NOT the active scene in Unity, so
+            // GetActiveScene().name never returned "MermanVillage" and this guard never fired —
+            // the mod minimap kept rendering inside the village and overlapped its map / seed-shop
+            // UI. We now scan every loaded scene instead of only the active one.
+            if (inGame && IsMermanVillageLoaded())
+                inGame = false;
 
             if (!inGame)
             {
-                if (_wasInGame) { Plugin.Log.LogInfo("DiveMap: left dive scene"); Cleanup(); }
+                if (_wasInGame) { Plugin.Debug("DiveMap: left dive scene"); Cleanup(); }
                 _wasInGame = false;
                 return;
             }
@@ -403,13 +401,13 @@ public class DiveMapBehaviour : MonoBehaviour
                         (_boundsMin.y + _boundsMax.y) / 2f);
                     _isDragging = false;
                 }
-                                Plugin.Log.LogInfo($"DiveMap: big map {(_showBigMap ? "ON" : "OFF")}");
+                                Plugin.Debug($"DiveMap: big map {(_showBigMap ? "ON" : "OFF")}");
             }
 
             // Create map lazily
             if (_mapCamera == null)
             {
-                if (!_wasInGame) Plugin.Log.LogInfo("DiveMap: entered dive scene, creating map...");
+                if (!_wasInGame) Plugin.Debug("DiveMap: entered dive scene, creating map...");
                 try { SetupMap(mainCam); }
                 catch (System.Exception e) { Plugin.Log.LogError($"DiveMap: setup failed: {e}"); _wasInGame = true; return; }
             }
@@ -531,7 +529,7 @@ public class DiveMapBehaviour : MonoBehaviour
 
         if (_nightOverlayRenderers.Count > 0)
         {
-            Plugin.Log.LogInfo($"DiveMap: found {_nightOverlayRenderers.Count} headlight overlay renderers to hide during map render");
+            Plugin.Debug($"DiveMap: found {_nightOverlayRenderers.Count} headlight overlay renderers to hide during map render");
             _nightOverlayScanned = true;
         }
     }
@@ -565,7 +563,7 @@ public class DiveMapBehaviour : MonoBehaviour
                         _boundsMin = Vector2.Min(_boundsMin, new Vector2(b.min.x, b.min.y));
                         _boundsMax = Vector2.Max(_boundsMax, new Vector2(b.max.x, b.max.y));
                     }
-                    Plugin.Log.LogInfo($"DiveMap: merged {boundsList.Count} sub-bounds");
+                    Plugin.Debug($"DiveMap: merged {boundsList.Count} sub-bounds");
                 }
             }
         }
@@ -577,7 +575,7 @@ public class DiveMapBehaviour : MonoBehaviour
         if (boundsWidth <= 1f || boundsHeight <= 1f)
         {
             var ccb = igm.CurrentCameraBounds;
-            Plugin.Log.LogInfo($"DiveMap: fallback to CurrentCameraBounds center={ccb.center} size={ccb.size}");
+            Plugin.Debug($"DiveMap: fallback to CurrentCameraBounds center={ccb.center} size={ccb.size}");
             _boundsMin = new Vector2(ccb.min.x, ccb.min.y);
             _boundsMax = new Vector2(ccb.max.x, ccb.max.y);
             boundsWidth = _boundsMax.x - _boundsMin.x;
@@ -633,7 +631,7 @@ public class DiveMapBehaviour : MonoBehaviour
         _viewMax = _boundsMax;
 
         CreateHUD();
-        Plugin.Log.LogInfo($"DiveMap: created, bounds=({_boundsMin})-({_boundsMax}), aspect={_levelAspect:F2}, tex={texSize}x{texSize}");
+        Plugin.Debug($"DiveMap: created, bounds=({_boundsMin})-({_boundsMax}), aspect={_levelAspect:F2}, tex={texSize}x{texSize}");
     }
 
     /// <summary>
@@ -657,7 +655,7 @@ public class DiveMapBehaviour : MonoBehaviour
         _mapCamera.targetTexture = _renderTexture;
         if (_mapImage != null) _mapImage.texture = _renderTexture;
 
-        Plugin.Log.LogInfo($"DiveMap: texture resized to {size}x{size}");
+        Plugin.Debug($"DiveMap: texture resized to {size}x{size}");
     }
 
     /// <summary>
@@ -698,7 +696,7 @@ public class DiveMapBehaviour : MonoBehaviour
                 }
 
                 _meleeAction = inGameMap.FindAction("Melee", false);
-                Plugin.Log.LogInfo($"[DiveMap] InputAction found: Melee={_meleeAction != null}");
+                Plugin.Debug($"[DiveMap] InputAction found: Melee={_meleeAction != null}");
             }
 
             if (!enabled)
@@ -1195,10 +1193,10 @@ public class DiveMapBehaviour : MonoBehaviour
                 {
                     if (chest == null) continue;
                     bool active = chest.gameObject.activeInHierarchy;
-                    if (!active) { chestSkipped++; if (debugChest) Plugin.Log.LogInfo($"[DiveMap] chest: {chest.gameObject.name} SKIP(inactive)"); continue; }
+                    if (!active) { chestSkipped++; if (debugChest) Plugin.Debug($"[DiveMap] chest: {chest.gameObject.name} SKIP(inactive)"); continue; }
                     bool isOpen = false;
                     try { isOpen = chest.IsOpen; } catch { chestSkipped++; continue; }
-                    if (isOpen) { chestSkipped++; if (debugChest) Plugin.Log.LogInfo($"[DiveMap] chest: {chest.gameObject.name} SKIP(IsOpen)"); continue; }
+                    if (isOpen) { chestSkipped++; if (debugChest) Plugin.Debug($"[DiveMap] chest: {chest.gameObject.name} SKIP(IsOpen)"); continue; }
                     var pos = chest.transform.position;
                     if (pos == Vector3.zero) continue;
                     var chestName = chest.gameObject.name;
@@ -1207,7 +1205,7 @@ public class DiveMapBehaviour : MonoBehaviour
                     var color = isO2 ? new Color(0.2f, 0.85f, 1f)
                               : isIngredient ? new Color(0.85f, 0.2f, 0.6f)
                               : new Color(1f, 0.6f, 0.2f);
-                    if (debugChest) Plugin.Log.LogInfo($"[DiveMap] chest: {chestName} IsOpen={isOpen} pos={pos}");
+                    if (debugChest) Plugin.Debug($"[DiveMap] chest: {chestName} IsOpen={isOpen} pos={pos}");
                     _staticCache.Add((pos, color, MarkerShape.Square));
                 }
             }
@@ -1245,7 +1243,7 @@ public class DiveMapBehaviour : MonoBehaviour
                     {
                         fishSkipped++;
                         if (debugFish)
-                            Plugin.Log.LogInfo($"[DiveMap] fish skip(dead): {fish.gameObject.name} active=false isEnabled=false iType={GetInteractionTypeName(fish)}");
+                            Plugin.Debug($"[DiveMap] fish skip(dead): {fish.gameObject.name} active=false isEnabled=false iType={GetInteractionTypeName(fish)}");
                         continue;
                     }
 
@@ -1266,7 +1264,7 @@ public class DiveMapBehaviour : MonoBehaviour
                             {
                                 fishSkipped++;
                                 if (debugFish)
-                                    Plugin.Log.LogInfo($"[DiveMap] fish skip(caught): {fish.gameObject.name} selfActive=false parentActive=true");
+                                    Plugin.Debug($"[DiveMap] fish skip(caught): {fish.gameObject.name} selfActive=false parentActive=true");
                                 continue;
                             }
                         }
@@ -1387,7 +1385,7 @@ public class DiveMapBehaviour : MonoBehaviour
                 catch { }
             }
 
-            Plugin.Log.LogInfo($"[DiveMap] scan: static={_staticCache.Count}(itemSkip={itemSkipped},chestSkip={chestSkipped})" +
+            Plugin.Debug($"[DiveMap] scan: static={_staticCache.Count}(itemSkip={itemSkipped},chestSkip={chestSkipped})" +
                 $" fish={_fishCache.Count}(active={fishActive},distant={fishDistant},catchable={fishCatchable},skip={fishSkipped},dead={fishDead})" +
                 $" ores={_oreCache.Count} traps={_crabTrapCache.Count}" +
                 $" registry(fish={EntityRegistry.AllFish.Count},items={EntityRegistry.AllItems.Count},chests={EntityRegistry.AllChests.Count},ores={EntityRegistry.AllBreakableOres.Count},mining={EntityRegistry.AllMiningNodes.Count},traps={EntityRegistry.AllCrabTraps.Count})");
@@ -1496,6 +1494,33 @@ public class DiveMapBehaviour : MonoBehaviour
         var panelSize = _markerPanel.rect.size;
         marker.rectTransform.anchoredPosition = new Vector2(nx * panelSize.x, ny * panelSize.y);
         return true;
+    }
+
+    // True when any *loaded* scene belongs to the Merfolk (Merman) Village. The village is
+    // loaded additively on top of the dive scene, so we cannot rely on GetActiveScene().
+    // Main scene: "MermanVillage". Sub-areas / record room: "MV_*" (MV_Casino_Inside,
+    // MV_SeedShop_Inside, MV_Restaurant_Inside, MV_Tenzhin_Inside, ... , MermanVillage_Recordroom).
+    private static bool IsMermanVillageLoaded()
+    {
+        try
+        {
+            int count = SceneManager.sceneCount;
+            for (int i = 0; i < count; i++)
+            {
+                UnityEngine.SceneManagement.Scene scene;
+                try { scene = SceneManager.GetSceneAt(i); }
+                catch { continue; }
+                if (!scene.IsValid() || !scene.isLoaded) continue;
+                var name = scene.name;
+                if (string.IsNullOrEmpty(name)) continue;
+                if (name.IndexOf("MermanVillage", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+                if (name.StartsWith("MV_", System.StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+        catch { }
+        return false;
     }
 
     private void Cleanup()
@@ -1626,11 +1651,11 @@ public class DiveMapBehaviour : MonoBehaviour
             bool hasAFT = fish.GetComponent<DR.AI.AwayFromTarget>() != null;
             int aggrType = GetAggressionType(fish);
             string interType = GetInteractionTypeName(fish);
-            Plugin.Log.LogInfo($"[DiveMap] fish: {name} | AggrType={AggrTypeName(aggrType)} AFT={hasAFT} InterType={interType} active={active} isEnabled={isEnabled} → aggressive={aggressive}");
+            Plugin.Debug($"[DiveMap] fish: {name} | AggrType={AggrTypeName(aggrType)} AFT={hasAFT} InterType={interType} active={active} isEnabled={isEnabled} → aggressive={aggressive}");
         }
         catch (System.Exception e)
         {
-            Plugin.Log.LogInfo($"[DiveMap] fish: {fish?.gameObject?.name ?? "?"} debug error: {e.Message}");
+            Plugin.Debug($"[DiveMap] fish: {fish?.gameObject?.name ?? "?"} debug error: {e.Message}");
         }
     }
 

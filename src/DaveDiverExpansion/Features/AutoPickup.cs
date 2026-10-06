@@ -86,7 +86,7 @@ public static class AutoPickup
         {
             if (!_wasLocked)
             {
-                Plugin.Log.LogInfo($"AutoPickup: locked (ActionLock={player.IsActionLock}, Scenario={player.IsScenarioPlaying}) — pausing");
+                Plugin.Debug($"AutoPickup: locked (ActionLock={player.IsActionLock}, Scenario={player.IsScenarioPlaying}) — pausing");
                 _wasLocked = true;
             }
             return;
@@ -95,7 +95,7 @@ public static class AutoPickup
         {
             _unlockTime = Time.time;
             _wasLocked = false;
-            Plugin.Log.LogInfo("AutoPickup: unlocked — cooldown 1s");
+            Plugin.Debug("AutoPickup: unlocked — cooldown 1s");
         }
         if (Time.time - _unlockTime < UnlockCooldown)
             return;

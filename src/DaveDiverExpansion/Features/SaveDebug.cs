@@ -29,6 +29,7 @@ public static class SaveDebug
 
     private static void OnUnityLog(string message, string stackTrace, LogType type)
     {
+        if (Plugin.DebugLog?.Value != true) return;
         if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert)
         {
             Plugin.Log.LogError($"[SaveDebug][Unity {type}] {message}");
@@ -45,6 +46,7 @@ public static class SaveDebug
     {
         static void Prefix(SpawnerChestItem_GodzillaFigure __instance)
         {
+            if (Plugin.DebugLog?.Value != true) return;
             try
             {
                 var go = __instance.gameObject;
@@ -74,6 +76,7 @@ public static class SaveDebug
     {
         static void Postfix(int id, bool __result)
         {
+            if (Plugin.DebugLog?.Value != true) return;
             // Only log figurine-related IDs (1010301-1010320)
             if (id >= 1010301 && id <= 1010320)
             {
@@ -90,6 +93,7 @@ public static class SaveDebug
     {
         static void Postfix()
         {
+            if (Plugin.DebugLog?.Value != true) return;
             if (_scanned) return;
 
             var t = Time.time;

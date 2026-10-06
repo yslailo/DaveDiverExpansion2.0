@@ -1,6 +1,9 @@
+using System;
 using BepInEx.Configuration;
 using DR;
 using HarmonyLib;
+using Il2CppInterop.Runtime;
+using Il2CppInterop.Runtime.InteropTypes;
 
 namespace DaveDiverExpansion.Features.SuperDave;
 
@@ -74,7 +77,7 @@ static class DiveBuffsHpDamagePatch
 /// <summary>
 /// Weightless items (infinite carry weight).
 ///
-/// IMPORTANT: this feature must never write to shared/stored data (e.g. Items.ItemWeight or
+/// IMPORTANT #1 — this feature must never write to shared/stored data (e.g. Items.ItemWeight or
 /// IntegratedItem.ItemWeight), because those writes persist for the whole game session and
 /// cannot be undone by toggling the option off. Instead every layer intercepts at read/compute
 /// time and simply *returns* 0 while the option is on, so turning it off restores normal weights
@@ -84,15 +87,46 @@ static class DiveBuffsHpDamagePatch
 ///   - DataManager.CalcModifiedWeight     (per-catch weight used when adding to the dive bag)
 ///   - LootBox weight / overweight state  (the actual dive-bag capacity)
 ///   - LootsInfoPanel display
+///
+/// IMPORTANT #2 — IL2CPP IDENTICAL-CODE-FOLDING (the reason this file type-checks the instance).
+/// The Unity IL2CPP toolchain merges byte-identical method bodies onto a SINGLE native address.
+/// These two trivial getters collide with unrelated movement getters:
+///     DR.Items.get_ItemWeight()                        ==  movss xmm0,[rcx+4Ch]; ret
+///     IndependentMovableHelper.get_GetCurrentSpeed()   ==  movss xmm0,[rcx+4Ch]; ret
+///     IntegratedItem.get_ItemWeight()                  ==  movss xmm0,[rcx+48h]; ret
+///     IndependentMovableHelper.get_GetCurrentRotationSpeed() == movss xmm0,[rcx+48h]; ret
+/// (IndependentMovableHelper is the base class of the fish-farm fish movers, and its fields
+///  +0x4C / +0x48 hold the current swim / rotation speed.)
+/// A naive "always zero" postfix therefore ALSO forced every fish's speed to 0 — e.g. all
+/// fish-farm fish froze in place the moment "Weightless Items" was enabled.
+/// Fix: the postfix reads the RUNTIME class of __instance through IL2CPP
+/// (ObjectClass -> il2cpp_class_is_assignable_from) and only zeroes the result for genuine
+/// item instances, leaving the folded movement getters untouched.
 /// </summary>
 [HarmonyPatch(typeof(Items), "get_ItemWeight")]
 static class DiveBuffsWeightlessItemsDefPatch
 {
-    static void Postfix(ref float __result)
+    private static IntPtr _itemsClass;
+    private static bool _itemsClassResolved;
+
+    static void Postfix(Il2CppObjectBase __instance, ref float __result)
     {
         try
         {
-            if (SuperDaveCore.Enabled.Value && DiveBuffs.WeightlessItems.Value)
+            if (!SuperDaveCore.Enabled.Value || !DiveBuffs.WeightlessItems.Value) return;
+            if (__instance == null) return;
+
+            if (!_itemsClassResolved)
+            {
+                _itemsClassResolved = true;
+                // DR.Items lives in namespace "DR".
+                _itemsClass = IL2CPP.GetIl2CppClass("Assembly-CSharp.dll", "DR", "Items");
+            }
+            if (_itemsClass == IntPtr.Zero) return;
+
+            // Folded twin IndependentMovableHelper.get_GetCurrentSpeed runs through this same
+            // native body for a non-Items instance — only zero real item weights.
+            if (IL2CPP.il2cpp_class_is_assignable_from(_itemsClass, __instance.ObjectClass))
                 __result = 0f;
         }
         catch { }
@@ -102,11 +136,27 @@ static class DiveBuffsWeightlessItemsDefPatch
 [HarmonyPatch(typeof(IntegratedItem), "get_ItemWeight")]
 static class DiveBuffsWeightlessItemWeightPatch
 {
-    static void Postfix(ref float __result)
+    private static IntPtr _integratedItemClass;
+    private static bool _integratedItemClassResolved;
+
+    static void Postfix(Il2CppObjectBase __instance, ref float __result)
     {
         try
         {
-            if (SuperDaveCore.Enabled.Value && DiveBuffs.WeightlessItems.Value)
+            if (!SuperDaveCore.Enabled.Value || !DiveBuffs.WeightlessItems.Value) return;
+            if (__instance == null) return;
+
+            if (!_integratedItemClassResolved)
+            {
+                _integratedItemClassResolved = true;
+                // IntegratedItem has no namespace (global).
+                _integratedItemClass = IL2CPP.GetIl2CppClass("Assembly-CSharp.dll", "", "IntegratedItem");
+            }
+            if (_integratedItemClass == IntPtr.Zero) return;
+
+            // Folded twin IndependentMovableHelper.get_GetCurrentRotationSpeed runs through this
+            // same native body for a non-IntegratedItem instance.
+            if (IL2CPP.il2cpp_class_is_assignable_from(_integratedItemClass, __instance.ObjectClass))
                 __result = 0f;
         }
         catch { }

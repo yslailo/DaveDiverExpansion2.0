@@ -1,288 +1,178 @@
-[size=4][b]DaveDiverExpansion[/b][/size]
-
-All-in-one diving enhancement mod for Dave the Diver.
-Built on BepInEx 6 + HarmonyX. Open source on [url=https://github.com/WhiteMinds/dave-diver-expansion]GitHub[/url].
-
-[size=3][b]Features[/b][/size]
-
-[b]Auto Pickup[/b]
-Automatically collects nearby fish, items, and treasure chests while diving.
+[size=6][b]DaveDiverExpansion 2.0 [/b][/size]
+is an all-in-one quality-of-life mod for [i]Dave the Diver[/i], built on BepInEx 6 (IL2CPP) + HarmonyX (tested with BepInEx 6.0.0-be.752). It keeps the original [b]DaveDiverExpansion[/b] framework — including the in-game [b]F1 settings panel[/b], dive map, auto pickup and iDiver upgrades — and folds in the full [b]SuperDave[/b] feature set (infinite oxygen, toxic aura, infinite drones/traps, speed boosts, weapon hotkeys and more). Everything lives in a single plugin, with one config file and one settings panel.
+[size=5][b]Highlights[/b][/size]
 [list]
-[*]Configurable pickup radius
-[*]Toggle fish / items / chests independently
-[*]Smart filtering: skips weapons to prevent swap loops
+[*]One plugin, one config — no conflicting mods to juggle [/*]
+[*]Full in-game settings panel: press [b]F1[/b], every option with a description, rebinding and "Reset All Settings" [/*]
+[*]Panel is a collapsible tree grouped into 6 areas: [b]Diving / Farming / Sushi / Map / Automation / System[/b] — hotkeys sit next to the feature they drive [/*]
+[*]On-screen [b]status HUD[/b]: Toxic Aura state/mode + common toggles, flashes when the aura is toggled, corner configurable [/*]
+[*]Auto pickup fish/items/chests while diving, with a configurable radius and smart filtering [/*]
+[*]Full-screen dive map with marker toggles — press [b]M[/b] [/*]
+[*]Instant capture: Toxic Aura (kill or sleep), infinite drones & crab traps [/*]
+[*][b]Auto Call Drone[/b] — the salvage drone is called for you when you swim up to a downed large fish [/*]
+[*]Diving buffs: infinite oxygen, invincible, infinite bullets, weightless items [/*]
+[*]Sushi bar: infinite patience, infinite wasabi, money boost [/*]
+[*]Weapon hotkeys: heal, give guns, level weapons up/down [/*]
+[*]English + 简体中文 interface [/*]
 [/list]
-
-[b]Dive Map[/b]
-Minimap HUD and full-level map overlay while diving.
-[list]
-[*]Minimap in configurable screen corner, follows the player with adjustable zoom
-[*]Press [b]M[/b] to toggle a full-level enlarged map — scroll wheel to zoom toward cursor, mouse drag to pan
-[*]Distinct marker shapes: aggressive fish (red triangle), ores (pink diamond), chests (square), escape pods (diamond), normal fish/catchable fish (circle)
-[*]Ore and mining node markers on the map
-[*]Distant fish markers — shows fish that are streamed out by the game, frozen at last known position
-[*]Big map legend panel and operation instructions
-[*]Independent toggles for normal / aggressive / catchable fish markers
-[*]ESC closes big map; map hides during cutscenes
-[/list]
-
-[b]Quick Scene Switch[/b]
-Instantly open the scene-switch menu from anywhere — no need to walk to the exit.
-[list]
-[*]Press [b]F2[/b] to open the menu in any non-dive scene (Lobby, Sushi Bar, Farm, etc.)
-[*]Same menu as the native exit trigger, with all unlocked destinations
-[/list]
-
-[b]iDiver Extension[/b]
-Adds custom upgrade options to the iDiver upgrade panel.
-[list]
-[*]Harpoon Damage Enhancement — +8 damage/level, max 5 levels, 10,000g each
-[*]Movement Speed Enhancement — +5% swim speed/level, max 5 levels, 5,000–25,000g
-[*]Booster Speed Enhancement — +5% booster speed/level, max 5 levels, 5,000–25,000g
-[*]Booster Duration Enhancement — +10s duration/level, max 5 levels, 5,000g each
-[*]Crab Trap Count Enhancement — +1 trap/level, max 5 levels, 5,000–25,000g
-[*]Crab Trap Efficiency Enhancement — −10s catch delay/level, max 6 levels, 5,000–30,000g
-[*]Drone Count Enhancement — +1 drone/level, max 10 levels, 10,000g each
-[*]Ecology Protection — multiply fish population per level (×2/×3/×4), max 3 levels, 20k–500k gold
-[*]Data-driven design: upgrade levels are saved and persist even when the feature is disabled
-[*]Disabled by default — enable in config panel
-[/list]
-
-[b]Auto Seahorse Race[/b]
-Automatically controls your seahorse during races.
-[list]
-[*]Auto acceleration — maintains optimal gauge speed (avoids overrun)
-[*]Auto dodge — detects obstacles and triggers jump/crawl with precise timing
-[*]Auto tag — uses tag input for speed boosts and relay handoffs (waits for Perfect timing)
-[*]Disabled by default — enable in config panel
-[/list]
-
-[b]Betting Expansion[/b]
-Expands casino mini-game betting options from 10/50/100 to 10/50/100/500/1000/5000.
-[list]
-[*]Applies to all standard casino games: Match Game, Hermit Crab, Shark Teeth
-[*]Does not affect Balatro (which has its own betting system)
-[/list]
-
-[b]In-Game Config Panel[/b]
-Press [b]F1[/b] to open a settings UI overlay.
-[list]
-[*]Auto-discovers all config entries from all features
-[*]Toggle, slider, dropdown, and text input controls
-[*]In-game key rebinding — click any hotkey button and press a new key
-[*]Hover any setting row to see its full description
-[*]Scroll wheel support for settings list
-[*]"Reset All Settings" button to restore defaults
-[*]Changes take effect immediately
-[/list]
-
-[size=3][b]Installation[/b][/size]
-
+All options are off/on individually — install it even if you only want the map or auto pickup.
+[line]
+[size=5][b]Installation[/b][/size]
 [list=1]
-[*]Download [url=https://builds.bepinex.dev/projects/bepinex_be]BepInEx 6 Bleeding Edge[/url] — select [b]Unity.IL2CPP-win-x64[/b]
-[*]Extract to your game folder: [font=Courier New]Steam\steamapps\common\Dave the Diver\[/font]
-[*]Download the main file from the Files tab
-[*]Extract the zip into the same game folder (it creates [font=Courier New]BepInEx\plugins\DaveDiverExpansion\[/font])
-[*]Launch the game
+[*]Install [url=https://builds.bepinex.dev/projects/bepinex_be][b]BepInEx 6 Bleeding Edge[/url] — download the [b]Unity.IL2CPP-win-x64[/b] build. [/*]
+[*]Extract BepInEx into your game folder:
+[code]Steam/steamapps/common/Dave the Diver/[/code]
+[/*]
+[*][b]Launch the game once[/b] so BepInEx generates
+[code]BepInEx/interop[/code]
+, then close it. [/*]
+[*]Download
+[code]DaveDiverExpansion-2.0.4.zip[/code]
+from this page and extract it. [/*]
+[*]Copy the
+[code]dave-diver-expansion2.0[/code]
+folder into:
+[code]Dave the Diver/BepInEx/plugins/[/code]
+so you end up with
+[code]BepInEx/plugins/dave-diver-expansion2.0/dave-diver-expansion2.0.dll[/code]
+[/*]
+[*]Launch the game and press [b]F1[/b] to open the settings panel. [/*]
 [/list]
-
-[size=3][b]Configuration[/b][/size]
-
-Press [b]F1[/b] in-game to open the built-in settings panel. All settings can be adjusted live and are saved automatically.
-
-You can also edit the config file directly:
-[font=Courier New]Dave the Diver\BepInEx\config\com.davediver.expansion.cfg[/font]
-
-[size=3][b]Settings[/b][/size]
-
-[b]ConfigUI[/b]
+[b]Updating:[/b] just replace the old
+[code]dave-diver-expansion2.0[/code]
+folder with the new one. Your settings are kept (
+[code]BepInEx/config/com.davediver.expansion2.0.cfg[/code]
+). [b]Uninstall:[/b] delete
+[code]BepInEx/plugins/dave-diver-expansion2.0/[/code]
+(and optionally the config file).
+[line]
+[size=5][b]Main features[/b][/size] [b]DaveDiverExpansion framework[/b]
 [list]
-[*][font=Courier New]ToggleKey[/font] (default: F1) — Key to open/close the config panel
-[/list]
-
-[b]QuickSceneSwitch[/b]
+[*][b]Auto Pickup[/b] — automatically collects nearby fish, items and chests while diving
 [list]
-[*][font=Courier New]Enabled[/font] (default: true) — Enable quick scene switching
-[*][font=Courier New]ToggleKey[/font] (default: F2) — Key to open the scene-switch menu
+[*]Configurable pickup radius [/*]
+[*]Independent toggles for fish / items / chests / ammo boxes / oxygen boxes [/*]
+[*]Smart filtering: skips weapons to prevent swap loops, respects grab-level limits [/*]
+[*]Pauses during cutscenes so quests don't break [/*]
 [/list]
-
-[b]AutoPickup[/b]
+[/*]
+[*][b]Dive Map[/b] — minimap HUD + full map overlay
 [list]
-[*][font=Courier New]Enabled[/font] (default: true) — Master toggle
-[*][font=Courier New]AutoPickupFish[/font] (default: false) — Auto-collect dead fish
-[*][font=Courier New]AutoPickupItems[/font] (default: true) — Auto-collect dropped items
-[*][font=Courier New]AutoPickupAmmoBox[/font] (default: true) — Auto-collect ammo boxes
-[*][font=Courier New]AutoPickupOxygenBox[/font] (default: true) — Auto-collect oxygen chests
-[*][font=Courier New]AutoOpenChests[/font] (default: false) — Auto-open treasure chests
-[*][font=Courier New]PickupRadius[/font] (default: 1.0) — Collection radius in game units
+[*]Press [b]M[/b] to toggle the enlarged map (scroll to zoom, drag to pan) [/*]
+[*]Marker toggles for aggressive fish / ores / chests / escape pods / fish [/*]
+[*]Auto-disables in Merfolk Village (it has its own map) [/*]
 [/list]
-
-[b]DiveMap[/b]
+[/*]
+[*][b]iDiver Extension[/b] — extra upgrades in the iDiver panel: harpoon damage, movement/booster speed, booster duration, crab trap count/efficiency, drone count, fish density ×2/×3/×4 [/*]
+[*][b]Auto Seahorse Race[/b] — auto-controls your seahorse during races [/*]
+[*][b]Betting Expansion[/b] — casino bets up to 5000 [/*]
+[*][b]Quick Scene Switch[/b] — press [b]F2[/b] to jump between scenes [/*]
+[*][b]In-Game Config Panel[/b] — press [b]F1[/b]; live-edit every setting, rebind hotkeys by clicking a row and pressing a key [/*]
+[*][b]6-area tree panel[/b] — Diving / Farming / Sushi / Map / Automation / System, with Expand/Collapse All; related hotkeys are listed inside their feature area [/*]
+[*][b]Status HUD[/b] — always-on corner overlay showing Toxic Aura state/mode and Infinite Oxygen / Invincible / Infinite Bullets; flashes when the aura is toggled; corner and per-line toggles configurable [/*]
+[/list]
+[b]SuperDave features[/b]
 [list]
-[*][font=Courier New]Enabled[/font] (default: true) — Enable the dive map HUD
-[*][font=Courier New]ToggleKey[/font] (default: M) — Key to toggle the enlarged map
-[*][font=Courier New]MiniMapEnabled[/font] (default: true) — Show the minimap overlay during diving
-[*][font=Courier New]MiniMapPosition[/font] (default: TopRight) — Screen corner for the minimap
-[*][font=Courier New]MiniMapOffsetX[/font] (default: 16) — Minimap horizontal offset from screen edge (0–500)
-[*][font=Courier New]MiniMapOffsetY[/font] (default: 16) — Minimap vertical offset from screen edge (0–500)
-[*][font=Courier New]MapSize[/font] (default: 0.3) — Minimap size (fraction of screen height)
-[*][font=Courier New]MiniMapZoom[/font] (default: 3.0) — Minimap zoom level
-[*][font=Courier New]MapOpacity[/font] (default: 0.8) — Map opacity
-[*][font=Courier New]ShowEscapePods[/font] (default: true) — Show escape pod markers
-[*][font=Courier New]ShowOres[/font] (default: true) — Show ore/mineral markers
-[*][font=Courier New]ShowFish[/font] (default: false) — Show normal fish markers
-[*][font=Courier New]ShowAggressiveFish[/font] (default: true) — Show aggressive fish markers
-[*][font=Courier New]ShowCatchableFish[/font] (default: true) — Show catchable fish markers
-[*][font=Courier New]ShowDistantFish[/font] (default: false) — Show markers for distant streamed-out fish
-[*][font=Courier New]ShowItems[/font] (default: false) — Show item markers
-[*][font=Courier New]ShowChests[/font] (default: false) — Show chest markers
-[*][font=Courier New]ShowCrabTraps[/font] (default: true) — Show fish trap spot markers
-[*][font=Courier New]MarkerScale[/font] (default: 1.0) — Scale multiplier for all map markers (0.5–3x)
+[*][b]Diving buffs[/b] — Infinite Oxygen, Invincible, Weightless Items, Infinite Bullets, hide item popups [/*]
+[*][b]Infinite Drones[/b] & [b]Infinite Crab Traps[/b] (+ auto-drop traps on trap zones) [/*]
+[*][b]Toxic Aura[/b] — insta-kill or sleep fish around Dave, with hotkeys to toggle/switch mode [/*]
+[*][b]Speed boosts[/b] — swim, boat walk, farm, fish farm, sushi bar & staff [/*]
+[*][b]Sushi bar[/b] — infinite customer patience, infinite wasabi, money boost, faster cooking [/*]
+[*][b]Default Harpoon Head[/b] — auto-equip a chosen harpoon type + level on every dive [/*]
+[*][b]Weapon hotkeys[/b] — full heal, give Tranq/Net/Snipe gun, weapon level up/down [/*]
+[*][b]Auto Call Drone[/b] — automatically call the salvage drone for a large fish the game allows it on when Dave is close (configurable radius); no aiming and no holding the interact key [/*]
 [/list]
 
-[b]iDiverExtension[/b]
+[line]
+[size=5][b]Changelog[/b][/size]
+[b]v2.0.4[/b]
 [list]
-[*][font=Courier New]Enabled[/font] (default: false) — Enable extra iDiver upgrade options (harpoon damage, move speed, booster speed, booster duration, crab trap count, crab trap efficiency, drone count, ecology protection)
-[*][font=Courier New]FishDensityEnabled[/font] (default: true) — Enable fish density enhancement from the Ecology Protection upgrade
+[*][b]Fix:[/b] fish in the [b]fish farm[/b] no longer freeze when [b]Weightless Items[/b] is on. The item-weight getters that option patches are byte-for-byte identical to the fish movers' speed getters, and the IL2CPP toolchain folds such identical bodies onto a single shared native function �� so zeroing item weight also zeroed the fish swim / rotation speed. The patch now verifies the object's real runtime type and only zeroes genuine item weights. [/*]
+[*][b]Fix:[/b] the dive [b]minimap[/b] no longer overlaps the [b]Merfolk Village[/b] UI. The village is loaded additively, so it is never the active scene and the old "active scene name" check never matched; the mod now scans every loaded scene. [/*]
+[*][b]Fix:[/b] reworked infinite patience for sushi-bar customers by freezing the food / drink patience tickers directly, so customers no longer stay stuck at the table and drink orders are no longer wrongly flagged as unsatisfied. [/*]
+[*][b]Improved:[/b] verbose diagnostics are now gated behind the [b]DebugLog[/b] option, so the BepInEx log stays clean by default. [/*]
 [/list]
-
-[b]AutoSeahorseRace[/b]
+[b]v2.0.3[/b]
 [list]
-[*][font=Courier New]Enabled[/font] (default: false) — Automatically control seahorse during racing
+[*][b]New:[/b] [b]Auto Call Drone[/b] — the salvage drone is called automatically when Dave swims close to a large fish the game allows the drone on. Replaces the old [i]Large Pickups[/i] option. [/*]
+[*][b]Fix:[/b] [b]Dave could get stuck and stop moving entirely[/b] when the old [i]Large Pickups[/i] option was on. It turned big fish into ordinary pickups without a valid pickup command, which made the game hit a null reference every frame in its input callback and freeze the player. Large fish keep their native drone interaction now. [/*]
+[*][b]Fix:[/b] the Toxic Aura treated every [b]large[/b] fish as awake — the sleep check read a field that does not exist on the buff handler, so big fish were re-slept over and over and could keep resisting the aura. [/*]
+[*][b]Fix:[/b] [b]Infinite Drones[/b] no longer fights the iDiver [i]Drone Count[/i] upgrade (it rewrote the drone count every frame and spammed "overwrite detected"); the count no longer oscillates. [/*]
+[*][b]Fix:[/b] fish are no longer registered twice in the internal entity list, so pickup/map/aura features stop doing duplicate work per fish. [/*]
+[*][b]Improved:[/b] the settings panel is now a collapsible tree with Expand/Collapse All, so long option lists are much easier to navigate. [/*]
 [/list]
-
-[b]BettingExpansion[/b]
+[b]v2.0.2[/b]
 [list]
-[*][font=Courier New]Enabled[/font] (default: true) — Expand casino mini-game betting from 10/50/100 to 10/50/100/500/1000/5000
+[*][b]Fix:[/b] [b]Weightless Items[/b] now only applies while the option is on — turning it off restores normal item weights instead of leaving shared item data at zero. [/*]
+[*][b]Fix:[/b] farm / fish-farm walk speed changes now apply live instead of only after reloading the farm. [/*]
+[*][b]New:[/b] status HUD (bottom-left by default) — aura state/mode plus Infinite Oxygen / Invincible / Infinite Bullets; flashes when the aura is toggled, corner configurable. [/*]
+[*][b]Improved:[/b] the F1 panel groups every setting into 6 areas with related hotkeys listed next to the feature they drive. [/*]
 [/list]
 
-[size=3][b]Changelog[/b][/size]
-
-[b]v1.6.1[/b]
+[line]
+[size=5][b]Default hotkeys[/b][/size]
+[b]Press directly[/b]
 [list]
-[*]Fix: Drone Count and Crab Trap Count enhancements doubling on every zone transition (e.g. entering caves, visiting Sea People Village) — the game preserves runtime values across zones, so the mod bonus was being re-applied on top of the already-boosted count each time
+[*][b]F1[/b] — open / close the settings panel [/*]
+[*][b]F2[/b] — open the scene-switch menu [/*]
+[*][b]M[/b] — toggle the enlarged dive map [/*]
 [/list]
-
-[b]v1.6.0[/b]
+[b]SuperDave hotkeys[/b] (hold the modifier key, default
+[code]LeftControl[/code]
+, then press the action key):
 [list]
-[*]Fix: Fish density (Ecology Protection upgrade) not working at 130m+ depth — replaced BoidGroup.Start trigger with per-frame scan of InGameManager.FishAllocators to cover both boid-based and single-fish allocators
-[*]Fix: Movement Speed Enhancement lost after entering/exiting sub-scenes (Records Room, etc.) — buff now re-applies to new PlayerCharacter instance
-[*]Fix: Oxygen chest auto-pickup wasting chests at long range — oxygen chests now use a fixed 1.0 unit pickup radius regardless of PickupRadius setting
-[*]Fix: DiveMap display on ultrawide monitors
-[*]New: AutoPickup ammo box and oxygen box toggles — independently enable/disable auto-pickup for ammo boxes and oxygen chests
-[*]Internal: Unified debug log toggle to a single global Plugin.DebugLog config entry
+[*][b]Modifier[/b] —
+[code]LeftControl[/code]
+— hold for the hotkeys below; set to [code]None[/code] to use them without a modifier [/*]
+[*][b]Toggle Toxic Aura[/b] —
+[code]Backspace[/code]
+— aura on/off [/*]
+[*][b]Aura Mode[/b] —
+[code]Backslash[/code]
+— Sleep / Kill [/*]
+[*][b]Heal[/b] —
+[code]Keypad0[/code]
+— fully heal Dave [/*]
+[*][b]Net Gun[/b] —
+[code]Keypad1[/code]
+— give a Net Gun [/*]
+[*][b]Tranq Gun[/b] —
+[code]Keypad2[/code]
+— give a Tranq Gun [/*]
+[*][b]Sniper[/b] —
+[code]Keypad3[/code]
+— give a Sniper [/*]
+[*][b]Weapon Up[/b] —
+[code]KeypadPlus[/code]
+— weapon level +1 [/*]
+[*][b]Weapon Down[/b] —
+[code]KeypadMinus[/code]
+— weapon level -1 [/*]
 [/list]
-
-[b]v1.5.0[/b]
+[b]Notes:[/b] [code]Backspace[/code] and [code]\[/code] are pressed on their own — no modifier needed. The weapon keys default to the [b]numeric keypad[/b] (not the number row above the letters); on a keyboard without a numpad, rebind them under [b]Diving → Weapon Control[/b]. Every key can be rebound in-game by pressing [b]F1[/b] and clicking the hotkey row. [b]Auto Call Drone[/b] has no hotkey — it triggers on its own.
+[line]
+[size=5][b]Requirements[/b][/size]
 [list]
-[*]New: iDiver Ecology Protection — multiply fish population by upgrading in the iDiver panel (×2/×3/×4, 3 levels, 20k–500k gold). Uses the game's own fish spawning path (DoInstanceFishOrGroup) for fully functional fish groups
-[*]New: FishDensityEnabled sub-config under iDiverExtension — independent toggle for the fish density feature
-[*]Fix: iDiver Drone Count Enhancement not applying correctly — bonus was silently lost when game's base drone count equaled the bonus amount. Now waits for game initialization before applying bonus (also fixes the same edge case for Crab Trap Count)
+[*][url=https://store.steampowered.com/app/1868140/Dave_the_Diver/][b]Dave the Diver[/url] (Steam, current version) [/*]
+[*][url=https://builds.bepinex.dev/projects/bepinex_be][b]BepInEx 6 Bleeding Edge[/url] — [i]Unity.IL2CPP-win-x64[/i] build (required, not bundled; tested with 6.0.0-be.752) [/*]
+[*]Windows 10/11, x64 [/*]
+[*]No other mod dependencies — this is a single standalone plugin [/*]
 [/list]
-
-[b]v1.4.0[/b]
+[b]Notes / compatibility[/b]
 [list]
-[*]New: Betting Expansion — expand casino mini-game betting from [10,50,100] to [10,50,100,500,1000,5000]
-[*]New: iDiver Crab Trap Count Enhancement — +1 crab trap per level
-[*]New: iDiver Crab Trap Efficiency Enhancement — reduce catch delay by 10s per level
-[*]New: iDiver Drone Count Enhancement — +1 drone per level
-[*]New: AutoContinue debug option — auto-load save on title screen (Debug section)
-[*]AutoSeahorseRace: Fixed obstacle dodge failing in subsequent races — obstacle positions are no longer cached, as the game reuses GameObjects at different positions across races
+[*]This mod bundles the features of the older [i]DaveDiverExpansion[/i] and [i]SuperDave[/i] mods. [b]Do not install those at the same time[/b] — remove them first to avoid duplicate configs and patch conflicts. [/*]
+[*]Save your game before enabling the more powerful options (infinite oxygen, toxic aura, etc.). [/*]
+[*]Single-player only. [/*]
+[*]If the game updates and a feature breaks, check the mod page for a new release. [/*]
 [/list]
 
-[b]v1.3.0[/b]
+[line]
+[size=5][b]Credits[/b][/size]
 [list]
-[*]New: iDiver Extension — 4 custom upgrade types in the iDiver panel: Harpoon Damage, Movement Speed, Booster Speed, and Booster Duration (disabled by default)
-[*]New: Auto Seahorse Race — automatically accelerates, dodges obstacles, and uses tags during seahorse races with precise timing (disabled by default)
-[*]DiveMap: Added fish trap spot (crab trap zone) markers — brown squares show where you can place fish traps
-[*]DiveMap: Fixed caught catchable fish (shrimp, seahorse) markers persisting on the map — now correctly detects caught state via activeSelf + parent check
-[*]DiveMap: Ammo boxes now shown with distinct coral-red diamond markers (separate from regular yellow items)
-[*]DiveMap: Updated legend with new marker types (Ammo Box, Trap Spot)
+[*][url=https://github.com/WhiteMinds/dave-diver-expansion]WhiteMinds/dave-diver-expansion[/url] — the original DaveDiverExpansion framework, auto pickup, dive map and F1 config panel this mod is built on. [/*]
+[*][url=https://github.com/devopsdinosaur/dave-the-diver-mods]devopsdinosaur/dave-the-diver-mods[/url] (SuperDave) — diving buffs, drones/traps, toxic aura, sushi bar, speed boosts and weapon hotkeys. [/*]
+[*][url=https://github.com/Arutsuyo/SuperDave2.0]Arutsuyo/SuperDave2.0[/url] — SuperDave 2.0 refinements. [/*]
+[*]The [b]BepInEx[/b] team for BepInEx 6 + HarmonyX. [/*]
+[*]The [i]Dave the Diver[/i] modding community for interop references and testing. [/*]
 [/list]
-
-[b]v1.2.1[/b]
-[list]
-[*]DiveMap: Fixed catchable fish (shrimp, seahorse, etc.) incorrectly hidden from the map — they were wrongly classified as dead because FishInteractionType is a static prefab config, not a runtime death state
-[*]DiveMap: Fixed dead fish ghost marker detection — replaced FishInteractionType-based filter with IsEnableInteraction check (the actual fish death/collect path), so only truly dead fish are hidden
-[/list]
-
-[b]v1.2.0[/b]
-[list]
-[*]DiveMap: Filter dead fish markers — fish in Carving (killed) or Pickup (awaiting collection) state no longer show on the map
-[*]DiveMap: Fixed minimap markers showing slightly beyond map edges (tightened visibility bounds)
-[*]DiveMap: Improved fish config descriptions — clarify behavioral differences between aggressive (active chase), normal (patrol-only contact damage), and catchable (flee-and-catch) fish
-[*]DiveMap: Changed ShowDistantFish default to false (reduces clutter from ghost markers)
-[*]AutoPickup: Skip full-ammo bullet boxes to avoid rapid failed pickup loops
-[*]ConfigUI: Description bar now auto-resizes height with text wrapping for long descriptions
-[*]QuickSceneSwitch: Added warning about cutscene/story event usage
-[/list]
-
-[b]v1.1.0[/b]
-[list]
-[*]AutoPickup: Safety checks for sea urchins (grab level check) and conditional fish (e.g. creatures requiring bug net) — prevents picking up items the player can't actually collect
-[*]I18n: Fixed auto language detection — now uses SaveSystem API directly instead of Harmony-patching auto-property getter (which produced garbage values under IL2CPP)
-[*]DiveMap: Fixed marker shapes (triangle, diamond, square) reverting to plain squares after scene change
-[/list]
-
-[b]v1.0.0[/b]
-[list]
-[*]DiveMap: Ore and mining node markers (pink diamonds) with dead/cleared filtering
-[*]DiveMap: Minimap position config — choose corner (TopRight/TopLeft/BottomRight/BottomLeft) and pixel offset
-[*]DiveMap: Big map now renders at 1024px for sharper detail
-[*]DiveMap: ESC closes big map; map hides during cutscenes and scripted actions
-[*]DiveMap: Distinct marker shapes — aggressive fish (red triangle), ores (pink diamond), chests (square), escape pods (diamond), player/fish (circle)
-[*]DiveMap: Big map legend panel showing all marker types with color and shape
-[*]DiveMap: Big map zoom and pan — scroll wheel zooms toward cursor, mouse drag pans
-[*]DiveMap: Combat input blocking — disables melee attack when mouse is over the big map
-[*]DiveMap: Big map operation instructions panel (scroll to zoom, drag to pan, close keys)
-[*]DiveMap: Independent fish type toggles — ShowFish (normal), ShowAggressiveFish, ShowCatchableFish
-[*]DiveMap: Minimap markers scale with zoom level for consistent visibility
-[*]DiveMap: Show distant (streamed-out) fish markers frozen at last known position (ShowDistantFish config)
-[*]DiveMap: MarkerScale config (0.5x–3x) for all map markers
-[*]DiveMap: Fixed minimap bounds in small scenes (e.g. boss fights) — uses fixed size instead of percentage
-[*]DiveMap: Fixed item markers not clearing after pickup (e.g. ingredient pots)
-[*]DiveMap: Fixed fish aggression misclassification (e.g. squid marked blue, seahorse marked red)
-[*]ConfigUI: Hover description bar — hover any setting row to see its full description
-[*]ConfigUI: Scroll wheel support for settings list
-[*]ConfigUI: Live language switching — changing language immediately refreshes all UI text
-[*]ConfigUI: "Reset All Settings" button with 3-second confirmation timeout
-[*]ConfigUI: Full i18n coverage for all setting names and descriptions (Chinese/English)
-[/list]
-
-[b]v0.3.0[/b]
-[list]
-[*]New: Quick Scene Switch — press F2 to open the scene-switch menu from anywhere (no need to walk to the exit)
-[*]New: In-game key rebinding — click any hotkey in the config panel to rebind it ("press any key" UX, ESC to cancel)
-[*]DiveMap: Minimap is now always square (1:1) for consistent appearance
-[*]DiveMap: Big map now merges all camera sub-bounds for a complete level view (fixes partial map in multi-region levels like Glacier)
-[*]DiveMap: Hides minimap and disables M key when ESC pause menu is open
-[*]ConfigUI: Section display order now follows logical grouping (ConfigUI → QuickSceneSwitch → AutoPickup → DiveMap)
-[*]ConfigUI: Added ToggleKey setting to rebind the F1 hotkey
-[/list]
-
-[b]v0.2.0[/b]
-[list]
-[*]AutoPickup: Pauses during cutscenes and scenarios with a 1-second cooldown to prevent quest-breaking pickups
-[*]DiveMap: Fixed night headlight overlay causing a black mask on the map
-[*]DiveMap: Auto-disables in Merfolk Village (which has its own map)
-[*]DiveMap: Color-coded chest markers — O2 chests (cyan), ingredient pots (purple-red), weapon/item/rock chests (orange)
-[*]DiveMap: Increased escape marker pool to 50 (fixes missing markers in deep-sea areas)
-[/list]
-
-[b]v0.1.0[/b]
-[list]
-[*]Initial release
-[*]Auto Pickup: fish, items, and treasure chests with smart weapon filtering
-[*]Dive Map: minimap HUD + full-level map with color-coded markers
-[*]In-Game Config Panel (F1): live settings with auto-discovery
-[/list]
-
-[size=3][b]Compatibility[/b][/size]
-[list]
-[*]Game version: v1.0.5.1784 (Steam)
-[*]BepInEx: 6.0.0-be.753 (IL2CPP)
-[*]Unity: 6000.0.52f1 (Unity 6)
-[/list]
-
-[size=3][b]Source Code[/b][/size]
-[url=https://github.com/WhiteMinds/dave-diver-expansion]GitHub Repository[/url] — MIT License
+Source code: [url=https://github.com/yslailo/DaveDiverExpansion2.0]github.com/yslailo/DaveDiverExpansion2.0[/url] — MIT License. Issues and PRs welcome.

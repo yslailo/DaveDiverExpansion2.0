@@ -183,7 +183,7 @@ public static class AutoCallDrone
             command.targetObject = target;
             command.DownExecute(player);
             command.SuccessInteraction(player);
-            Plugin.Log.LogInfo($"[AutoCallDrone] called drone on {fish.gameObject.name} (cmd={NativeClassName(command)}, sub={isSub})");
+            Plugin.Debug($"[AutoCallDrone] called drone on {fish.gameObject.name} (cmd={NativeClassName(command)}, sub={isSub})");
             return true;
         }
         catch (Exception e)
@@ -268,7 +268,7 @@ public static class AutoCallDrone
             try { droned = _droned.Contains(fish.Pointer.ToInt64()); } catch { }
             sb.Append($" [{fish.gameObject.name}: type={fish.InteractionType}/{fish.SubInteractionType} main={NativeClassName(main)} sub={NativeClassName(sub)} balloon={balloon} drone={drone}/{(isSub ? "sub" : "main")} droned={droned} mavail={mavail} savail={savail} asleep={ToxicAura.IsFishAsleep(fish)} dead={IsDead(fish)} {ToxicAura.DescribeBuffState(fish)}]");
         }
-        Plugin.Log.LogInfo($"[AutoCallDrone] diag droneAvail={droneAvail} inRadius={inRadius}{sb}");
+        Plugin.Debug($"[AutoCallDrone] diag droneAvail={droneAvail} inRadius={inRadius}{sb}");
     }
 
     // Resolve the real IL2CPP class name of an interop object (the managed GetType() may lie).

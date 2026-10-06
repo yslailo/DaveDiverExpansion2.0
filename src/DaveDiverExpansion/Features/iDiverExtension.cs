@@ -447,22 +447,22 @@ public static class iDiverExtension
                     if (equipped != null)
                     {
                         int savedLevel = equipped.TID - def.SubEquipBaseTID;
-                        Plugin.Log.LogInfo($"[iDiverExt] Init type {def.TypeId}: equipped TID={equipped.TID}, savedLevel={savedLevel}, MaxLevel={def.MaxLevel}");
+                        Plugin.Debug($"[iDiverExt] Init type {def.TypeId}: equipped TID={equipped.TID}, savedLevel={savedLevel}, MaxLevel={def.MaxLevel}");
                         if (savedLevel > def.MaxLevel)
                         {
                             int clampedTID = def.SubEquipBaseTID + def.MaxLevel;
-                            Plugin.Log.LogInfo($"[iDiverExt] Downgrading type {def.TypeId}: level {savedLevel}→{def.MaxLevel}, newTID={clampedTID}");
+                            Plugin.Debug($"[iDiverExt] Downgrading type {def.TypeId}: level {savedLevel}→{def.MaxLevel}, newTID={clampedTID}");
                             __instance.AddSubEquip(clampedTID);
                             __instance.EquipSubEquip(clampedTID);
 
                             // Verify downgrade
                             var after = __instance.GetEquipedSubEquipByType((SubEquipmentType)def.TypeId);
-                            Plugin.Log.LogInfo($"[iDiverExt] After downgrade: TID={after?.TID}, level={after?.TID - def.SubEquipBaseTID}");
+                            Plugin.Debug($"[iDiverExt] After downgrade: TID={after?.TID}, level={after?.TID - def.SubEquipBaseTID}");
                         }
                         continue;
                     }
 
-                    Plugin.Log.LogInfo($"[iDiverExt] Init type {def.TypeId}: no equipped, adding base level 0");
+                    Plugin.Debug($"[iDiverExt] Init type {def.TypeId}: no equipped, adding base level 0");
                     __instance.AddSubEquip(def.SubEquipBaseTID);
                     __instance.EquipSubEquip(def.SubEquipBaseTID);
                 }
@@ -810,7 +810,7 @@ public static class iDiverExtension
                 // (zone transition within a dive, or a completely new dive)
                 if (__instance != _lastPlayer)
                 {
-                    Plugin.Log.LogInfo($"[iDiverExt] PlayerCharacter changed, scene={SceneManager.GetActiveScene().name}");
+                    Plugin.Debug($"[iDiverExt] PlayerCharacter changed, scene={SceneManager.GetActiveScene().name}");
                     _lastPlayer = __instance;
                     _lastMoveLevel = -1;
                     // DO NOT reset _lastTrapBonus/_lastDroneBonus here!
@@ -865,7 +865,7 @@ public static class iDiverExtension
                 if (spec._SubHelperType == SubHelperType.Booster || spec._SubHelperType == SubHelperType.BoosterMk2)
                 {
                     inven.StoreInstanceItem(spec);
-                    Plugin.Log.LogInfo($"[iDiverExt] DEBUG: Spawned {spec._SubHelperType} TID={spec.TID}, Duration={spec.BatteryDuration}s, Speed={spec.BoosterSpeed}");
+                    Plugin.Debug($"[iDiverExt] DEBUG: Spawned {spec._SubHelperType} TID={spec.TID}, Duration={spec.BatteryDuration}s, Speed={spec.BoosterSpeed}");
                     foundAny = true;
                 }
             }
@@ -897,14 +897,14 @@ public static class iDiverExtension
                 buffData.AddMoveSpeedParam(MOVE_SPEED_PARAM_TID, mult);
                 if (!_loggedMove)
                 {
-                    Plugin.Log.LogInfo($"[iDiverExt] MoveSpeed: level={level}, AddMoveSpeedParam({MOVE_SPEED_PARAM_TID}, {mult})");
+                    Plugin.Debug($"[iDiverExt] MoveSpeed: level={level}, AddMoveSpeedParam({MOVE_SPEED_PARAM_TID}, {mult})");
                     _loggedMove = true;
                 }
             }
             else
             {
                 buffData.RemoveMoveSpeedParam(MOVE_SPEED_PARAM_TID);
-                Plugin.Log.LogInfo($"[iDiverExt] MoveSpeed: disabled, RemoveMoveSpeedParam({MOVE_SPEED_PARAM_TID})");
+                Plugin.Debug($"[iDiverExt] MoveSpeed: disabled, RemoveMoveSpeedParam({MOVE_SPEED_PARAM_TID})");
             }
         }
 
@@ -948,7 +948,7 @@ public static class iDiverExtension
                         float bonus = Upgrades[2].ValueFunc(spdLevel) / 100f;
                         handler._multiplyMoveSpeed = baseSpeed * (1f + bonus);
                         if (_boostSpdLogCount++ < 5)
-                            Plugin.Log.LogInfo($"[iDiverExt] BoosterSpeed SET: level={spdLevel}, bonus={bonus*100}%, baseFromSpec={baseSpeed}, target={handler._multiplyMoveSpeed}");
+                            Plugin.Debug($"[iDiverExt] BoosterSpeed SET: level={spdLevel}, bonus={bonus*100}%, baseFromSpec={baseSpeed}, target={handler._multiplyMoveSpeed}");
                     }
                 }
             }
@@ -995,7 +995,7 @@ public static class iDiverExtension
 
                             if (!_loggedBoostDur)
                             {
-                                Plugin.Log.LogInfo($"[iDiverExt] BoosterDuration: level={durLevel}, base={baseDuration}s, bonus={bonus}s, drained={drained}, compensate={compensate}, totalDur={totalDuration}");
+                                Plugin.Debug($"[iDiverExt] BoosterDuration: level={durLevel}, base={baseDuration}s, bonus={bonus}s, drained={drained}, compensate={compensate}, totalDur={totalDuration}");
                                 _loggedBoostDur = true;
                             }
                         }
@@ -1024,7 +1024,7 @@ public static class iDiverExtension
             {
                 if (current == 0) return;
                 _trapBaseInitialized = true;
-                Plugin.Log.LogInfo($"[iDiverExt] CrabTrapCount: base init current={current}, lastBonus={_lastTrapBonus}");
+                Plugin.Debug($"[iDiverExt] CrabTrapCount: base init current={current}, lastBonus={_lastTrapBonus}");
             }
 
             // Detect if game overwrote our value (new dive init or other)
@@ -1034,7 +1034,7 @@ public static class iDiverExtension
                 if (diff != 1)
                 {
                     // Game overwrite (new dive init or other) — our bonus was lost
-                    Plugin.Log.LogInfo($"[iDiverExt] CrabTrapCount: overwrite detected, expected={_expectedTrapCount}, current={current}, resetting lastBonus from {_lastTrapBonus} to 0");
+                    Plugin.Debug($"[iDiverExt] CrabTrapCount: overwrite detected, expected={_expectedTrapCount}, current={current}, resetting lastBonus from {_lastTrapBonus} to 0");
                     _lastTrapBonus = 0;
                 }
             }
@@ -1043,7 +1043,7 @@ public static class iDiverExtension
             int delta = wantBonus - _lastTrapBonus;
             if (delta != 0)
             {
-                Plugin.Log.LogInfo($"[iDiverExt] CrabTrapCount: applying bonus={wantBonus}, delta={delta}, {current}→{current + delta}");
+                Plugin.Debug($"[iDiverExt] CrabTrapCount: applying bonus={wantBonus}, delta={delta}, {current}→{current + delta}");
                 player.AvailableCrabTrapCount = current + delta;
                 _lastTrapBonus = wantBonus;
             }
@@ -1078,7 +1078,7 @@ public static class iDiverExtension
             {
                 if (current == 0) return;
                 _droneBaseInitialized = true;
-                Plugin.Log.LogInfo($"[iDiverExt] DroneCount: base init current={current}, lastBonus={_lastDroneBonus}");
+                Plugin.Debug($"[iDiverExt] DroneCount: base init current={current}, lastBonus={_lastDroneBonus}");
             }
 
             // Detect game overwrite: game reset the count to something unexpected.
@@ -1090,7 +1090,7 @@ public static class iDiverExtension
                 if (diff != 1)
                 {
                     // Game overwrite (new dive init or other) — our bonus was lost
-                    Plugin.Log.LogInfo($"[iDiverExt] DroneCount: overwrite detected, expected={_expectedDroneCount}, current={current}, resetting lastBonus from {_lastDroneBonus} to 0");
+                    Plugin.Debug($"[iDiverExt] DroneCount: overwrite detected, expected={_expectedDroneCount}, current={current}, resetting lastBonus from {_lastDroneBonus} to 0");
                     _lastDroneBonus = 0;
                 }
             }
@@ -1098,7 +1098,7 @@ public static class iDiverExtension
             int delta = wantBonus - _lastDroneBonus;
             if (delta != 0)
             {
-                Plugin.Log.LogInfo($"[iDiverExt] DroneCount: applying bonus={wantBonus}, delta={delta}, {current}→{current + delta}");
+                Plugin.Debug($"[iDiverExt] DroneCount: applying bonus={wantBonus}, delta={delta}, {current}→{current + delta}");
                 player.AvailableLiftDroneCount = current + delta;
                 _lastDroneBonus = wantBonus;
             }
@@ -1139,7 +1139,7 @@ public static class iDiverExtension
                     var constVal = dm.GameConstValue;
                     if (constVal == null) return;
                     _cachedBaseDelay = constVal.CrabTrapCatchDelay_Sec;
-                    Plugin.Log.LogInfo($"[iDiverExt] CrabTrapCatchDelay_Sec base value = {_cachedBaseDelay}s");
+                    Plugin.Debug($"[iDiverExt] CrabTrapCatchDelay_Sec base value = {_cachedBaseDelay}s");
                 }
 
                 // Match UpgradeDef.ValueFunc: -10s per level
@@ -1159,7 +1159,7 @@ public static class iDiverExtension
                         *targetTimePtr = wantTarget;
                         if (!_logged)
                         {
-                            Plugin.Log.LogInfo($"[iDiverExt] CrabTrapEfficiency: level={level}, base={_cachedBaseDelay}s, target={wantTarget}s (was {current}s)");
+                            Plugin.Debug($"[iDiverExt] CrabTrapEfficiency: level={level}, base={_cachedBaseDelay}s, target={wantTarget}s (was {current}s)");
                             _logged = true;
                         }
                     }

@@ -54,7 +54,7 @@ public static class FishDensity
             int prevCount = _processedAllocators.Count;
             _processedAllocators.Clear();
             if (prevCount > 0)
-                Plugin.Log.LogInfo($"[FishDensity] Scene '{scene.name}' loaded, cleared {prevCount} processed allocators");
+                Plugin.Debug($"[FishDensity] Scene '{scene.name}' loaded, cleared {prevCount} processed allocators");
         }
     }
 
@@ -128,7 +128,7 @@ public static class FishDensity
             }
 
             if (totalSpawned > 0)
-                Plugin.Log.LogInfo($"[FishDensity] Spawned {totalSpawned} extra groups (processedSet={_processedAllocators.Count})");
+                Plugin.Debug($"[FishDensity] Spawned {totalSpawned} extra groups (processedSet={_processedAllocators.Count})");
         }
         finally
         {

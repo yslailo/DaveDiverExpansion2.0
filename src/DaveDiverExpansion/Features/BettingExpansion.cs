@@ -1,3 +1,4 @@
+using System;
 using BepInEx.Configuration;
 using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
@@ -51,25 +52,32 @@ public static class BettingExpansion
         {
             if (!_enabled.Value) return;
 
-            var costs = __instance.bettingCosts;
-            if (costs == null) return;
-
-            if (IsExpandedCosts(costs)) return;
-            if (!IsDefaultCosts(costs)) return;
-
-            var newCosts = new Il2CppStructArray<int>(ExpandedAmounts.Length);
-            for (int i = 0; i < ExpandedAmounts.Length; i++)
-                newCosts[i] = ExpandedAmounts[i];
-
-            int idx = __instance._bettingIndex;
-            if (idx >= ExpandedAmounts.Length) idx = 0;
-
-            __instance.SetBettingCosts(newCosts, idx, false);
-
-            if (!_loggedOnce)
+            try
             {
-                Plugin.Log.LogInfo("[BettingExpansion] Expanded betting to [10, 50, 100, 500, 1000, 5000]");
-                _loggedOnce = true;
+                var costs = __instance.bettingCosts;
+                if (costs == null) return;
+
+                if (IsExpandedCosts(costs)) return;
+                if (!IsDefaultCosts(costs)) return;
+
+                var newCosts = new Il2CppStructArray<int>(ExpandedAmounts.Length);
+                for (int i = 0; i < ExpandedAmounts.Length; i++)
+                    newCosts[i] = ExpandedAmounts[i];
+
+                int idx = __instance._bettingIndex;
+                if (idx >= ExpandedAmounts.Length) idx = 0;
+
+                __instance.SetBettingCosts(newCosts, idx, false);
+
+                if (!_loggedOnce)
+                {
+                    Plugin.Log.LogInfo("[BettingExpansion] Expanded betting to [10, 50, 100, 500, 1000, 5000]");
+                    _loggedOnce = true;
+                }
+            }
+            catch (Exception e)
+            {
+                Plugin.Log.LogWarning("[BettingExpansion] RefreshCost patch error: " + e.Message);
             }
         }
     }

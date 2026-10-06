@@ -15,6 +15,13 @@ public class Plugin : BasePlugin
     internal static ConfigEntry<bool> DebugLog;
     private Harmony _harmony;
 
+    /// <summary>Verbose logging, gated behind the global "DebugLog" option (off by default).</summary>
+    internal static void Debug(string message)
+    {
+        try { if (DebugLog != null && DebugLog.Value) Log.LogInfo(message); }
+        catch { }
+    }
+
     public override void Load()
     {
         Log = base.Log;
@@ -46,6 +53,29 @@ public class Plugin : BasePlugin
         AuraHud.Init(Config); // status HUD (aura + common toggles)
 
         ConfigUI.Init(Config); // Must be after other features so it discovers their ConfigEntries
+
+        // When debug logging is enabled, dump the effective config so a single reporter log is
+        // self-contained (which [Sushi]/[SuperDave]/speed features were actually on).
+        if (DebugLog.Value)
+        {
+            try
+            {
+                Log.LogInfo("==== [Config] effective values ====");
+                foreach (var kv in Config)
+                {
+                    try { Log.LogInfo($"[Config] {kv.Key.Section}/{kv.Key.Key} = {kv.Value.BoxedValue}"); }
+                    catch { }
+                }
+                Log.LogInfo("==== [Config] end ====");
+            }
+            catch { }
+        }
+
+        // Force IL2CPP class init of every type we patch BEFORE installing detours. Doing this
+        // lazily during PatchAll() lets the invoke dispatcher re-enter a half-installed detour
+        // and fatally recurse (see SushiBarTweaks.PreInitTypes).
+        SushiBarTweaks.PreInitTypes();
+
         // Apply Harmony patches
         _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
         _harmony.PatchAll();
@@ -58,6 +88,6 @@ internal static class MyPluginInfo
 {
     public const string PLUGIN_GUID = "com.davediver.expansion2.0";
     public const string PLUGIN_NAME = "dave-diver-expansion2.0";
-    public const string PLUGIN_VERSION = "2.0.3";
+    public const string PLUGIN_VERSION = "2.0.4";
 }
 

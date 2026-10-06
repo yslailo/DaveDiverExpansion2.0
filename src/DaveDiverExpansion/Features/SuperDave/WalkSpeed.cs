@@ -90,7 +90,7 @@ internal static class FarmSpeed
             view.m_Speed_Max = max;
 
             if (_logged.Add(id))
-                Plugin.Log.LogInfo($"[WalkSpeed] Farm: base=({b.min}, {b.max}) mult={mult} -> ({min}, {max})");
+                Plugin.Debug($"[WalkSpeed] Farm: base=({b.min}, {b.max}) mult={mult} -> ({min}, {max})");
         }
         catch (Exception e)
         {

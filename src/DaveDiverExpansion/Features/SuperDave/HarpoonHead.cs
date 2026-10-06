@@ -18,6 +18,8 @@ public static class HarpoonHead
 
     private static Dictionary<HarpoonHeadItemType, List<HarpoonHeadSpecData>> _heads;
     private static int _appliedInventoryHash;
+    private static float _lastFailLog;
+    private static float _retryAfter;
 
     public static void Init(ConfigFile config)
     {
@@ -34,6 +36,13 @@ public static class HarpoonHead
         try
         {
             if (!SuperDaveCore.Enabled.Value || string.IsNullOrEmpty(HeadType.Value)) return;
+
+            // Back off after a failure so a scene where the harpoon handler is not ready yet
+            // (village / boat / lobby) does not call EquipItem — and throw — every single frame.
+            // We deliberately do NOT gate on "fish present": fish-less dives (e.g. boss fights)
+            // would then never get the configured head applied.
+            if (UnityEngine.Time.time < _retryAfter) return;
+
             var inventory = player?.CurrentInstanceItemInventory;
             if (inventory == null) return;
 
@@ -47,11 +56,17 @@ public static class HarpoonHead
             int level = Mathf.Clamp(HeadLevel.Value, 0, list.Count - 1);
             inventory.harpoonHandler.EquipItem(list[level], true);
             _appliedInventoryHash = hash;
-            Plugin.Log.LogInfo($"[HarpoonHead] Equipped {type} level {level} ({list[level].Name})");
+            Plugin.Debug($"[HarpoonHead] Equipped {type} level {level} ({list[level].Name})");
         }
         catch (Exception e)
         {
-            Plugin.Log.LogWarning("[HarpoonHead] Tick failed: " + e.Message);
+            // Back off and throttle: a persistent failure must not throw every frame or spam the log.
+            _retryAfter = UnityEngine.Time.time + 2f;
+            if (UnityEngine.Time.time - _lastFailLog >= 10f)
+            {
+                _lastFailLog = UnityEngine.Time.time;
+                Plugin.Log.LogWarning("[HarpoonHead] Tick failed: " + e.Message);
+            }
         }
     }
 
